@@ -1,0 +1,33 @@
+# Trained models (kept outside the repo — see trained_models_archive/)
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Datasets / large data artifacts (rebuild with data_preparation/)
+*.parquet
+*.labels
+*.tsv
+PTC/
+ProText/
+processed_span_data/
+*.xlsx
+
+# Secrets
+.env
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+__MACOSX/
+.vscode/
+.idea/

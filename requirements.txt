@@ -1,0 +1,26 @@
+# Core deep-learning stack (versions used for the thesis experiments)
+torch==2.10.0
+transformers==5.3.0
+pytorch-crf==0.7.2          # imported as `torchcrf`
+spacy==3.8.11
+
+# Data / numerics
+pandas==3.0.1
+numpy==2.4.2
+scikit-learn==1.8.0
+pyarrow==23.0.1             # parquet I/O
+openpyxl==3.1.5            # reading ProText.xlsx
+tqdm==4.67.3
+
+# LLM baselines (Experiment 8 / Experiment 3) — HTTP calls to OpenAI / OpenRouter
+requests==2.32.5
+
+# Analysis / plotting (notebooks)
+matplotlib==3.10.8
+seaborn==0.13.2
+umap-learn==0.5.12
+vaderSentiment==3.3.2
+wordcloud==1.9.6
+
+# spaCy English model is required for POS/NER/discourse features:
+#   python -m spacy download en_core_web_sm
