@@ -37,20 +37,20 @@ propaganda-detection/
 │   ├── experiment_5_pos_ner_discourse_weighted/ discourse + class weights
 │   ├── experiment_6_limited_set/               reduced feature/label set
 │   ├── experiment_7_updated_discourse/         FINAL SI model (best)
-│   ├── experiment_8_llm/                        GPT few-shot baseline
-│   └── task-SI_scorer.py                        official SemEval SI scorer
+│   ├── experiment_8_llm/                        GPT 5.4 few-shot baseline
+│   └── task-SI_scorer.py                         SI scorer
 │
 └── technique_classification/      ← Task 2 (TC)
     ├── README.md
     ├── experiment_1/              RoBERTa-large + span pooling + BCE
     ├── experiment_2/             FINAL TC model (best) — CLS + span-mean + span-max pooling
-    ├── experiment_3_llm/         GPT / OpenRouter few-shot baseline
-    └── (each supervised experiment ships the official task-TC_scorer.py + src/)
+    ├── experiment_3_llm/         GPT 5.4 few-shot baseline
+    └── (each supervised experiment ships the task-TC_scorer.py + src/)
 ```
 
 Each supervised experiment folder contains:
 - `model.py` — model definition **and** the training entry point (`python model.py`)
-- `Evaluation.ipynb` + `evaluation_helper*.py` — scoring against the official scorer
+- `Evaluation.ipynb` + `evaluation_helper*.py`
 
 ---
 
