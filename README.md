@@ -44,7 +44,7 @@ propaganda-detection/
     ├── README.md
     ├── experiment_1/              RoBERTa-large + span pooling + BCE
     ├── experiment_2/             FINAL TC model (best) — CLS + span-mean + span-max pooling
-    ├── experiment_3_llm/         GPT / OpenRouter few-shot baseline
+    ├── experiment_3_llm/         GPT few-shot baseline
     └── (each supervised experiment ships the official task-TC_scorer.py + src/)
 ```
 
@@ -118,16 +118,20 @@ path at the matching file in `trained_models_archive/` (see below).
 
 ## LLM baselines
 
-- **SI — Experiment 8** (`span_identification/experiment_8_llm/`): few-shot
-  prompting (positive/negative article examples) → JSON array of span strings.
-- **TC — Experiment 3** (`technique_classification/experiment_3_llm/`): 14-shot
-  prompting (one example per technique) → JSON array of technique labels.
+Each LLM folder has a **run** script and an **evaluation** notebook:
 
-Both read the API key from an environment variable — **no keys are committed**:
+- **SI — Experiment 8** (`span_identification/experiment_8_llm/`): `llm_span.py`
+  (few-shot prompting → predicted span strings) + `Evaluation.ipynb` (offsets →
+  official SI scorer).
+- **TC — Experiment 3** (`technique_classification/experiment_3_llm/`):
+  `llm_technique.py` (14-shot prompting → predicted labels) + `Evaluation.ipynb`
+  (span-level micro-F1).
+
+The run scripts read the API key from an environment variable — **no keys are
+committed**:
 
 ```bash
 export OPENAI_API_KEY=...        # llm_span.py, llm_technique.py (GPT)
-export OPENROUTER_API_KEY=...    # llm_openrouter.py (open models)
 ```
 
 ---

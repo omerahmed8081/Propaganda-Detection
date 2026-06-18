@@ -5,8 +5,7 @@ import random
 import re
 import time
 import argparse
-import os
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_API_KEY = ""
 MODEL = "gpt-5.4"
 URL = "https://api.openai.com/v1/chat/completions"
 
@@ -287,7 +286,7 @@ def predict_spans(df, new_article):
         "parsed_spans": parsed,
         "filtered_spans": filtered
     }
-
+import pandas as pd
 
 def predict_on_dataset(train_df, test_df, num_articles=5):
 

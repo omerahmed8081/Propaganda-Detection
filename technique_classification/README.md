@@ -24,7 +24,7 @@ The 14 techniques are listed in
 |---|--------|----------------|
 | 1 | `experiment_1` | `[CLS]` pooling, plain `BCEWithLogitsLoss` |
 | 2 | `experiment_2` | **final TC model** — `[CLS]` + span-mean + span-max pooling, `BCEWithLogitsLoss(pos_weight=…)` to counter label imbalance |
-| 3 | `experiment_3_llm` | GPT / OpenRouter few-shot baseline (14-shot, no fine-tuning) |
+| 3 | `experiment_3_llm` | GPT few-shot baseline (14-shot, no fine-tuning) |
 
 ## Train
 
@@ -46,12 +46,13 @@ It produces a SemEval submission `.tsv` and scores it with `task-TC_scorer.py`
 ## LLM baseline (Experiment 3)
 
 ```bash
-export OPENAI_API_KEY=...        # GPT — llm_technique.py
-export OPENROUTER_API_KEY=...    # open models — llm_openrouter.py
+export OPENAI_API_KEY=...
 cd experiment_3_llm
-python llm_technique.py --help
+python llm_technique.py --help   # run: 14-shot prompting -> output/results.csv
 ```
 
-`llm_technique.py` runs the GPT baseline (one in-context example per technique →
-JSON array of labels); `llm_openrouter.py` is the cheaper open-model variant for
-quick testing; `evaluate_llm.py` scores the LLM predictions.
+- **Run:** `llm_technique.py` — one in-context example per technique; writes
+  predictions to `output/results.csv`.
+- **Evaluate:** `Evaluation.ipynb` — scores `output/results.csv` with the same
+  span-level micro-F1 as `task-TC_scorer.py`, plus per-technique F1 and error
+  analysis.

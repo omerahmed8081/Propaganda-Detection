@@ -58,9 +58,15 @@ with the official scorer.
 ```bash
 export OPENAI_API_KEY=...
 cd experiment_8_llm
-python llm_span.py --help
+python llm_span.py --help     # run: few-shot prompting -> results.json (predicted span strings)
 ```
 
-Few-shot prompting with positive/negative article examples; the model returns a
-JSON array of propagandistic span strings, which are matched back to character
-offsets. `llm_sentence_analysis.py` contains the follow-up error analysis.
+- **Run:** `llm_span.py` — few-shot prompting with positive/negative article
+  examples; the model returns a JSON array of propagandistic span strings,
+  saved to `results.json`.
+- **Evaluate:** `Evaluation.ipynb` — locates each predicted/gold span string in
+  the article text to get character offsets, then scores with the official
+  `task-SI_scorer.py`.
+
+`llm_sentence_analysis.py` is an optional, deeper sentence-level error analysis
+(uses external `.labels` paths — adjust them before running).

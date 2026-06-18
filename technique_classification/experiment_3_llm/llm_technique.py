@@ -20,7 +20,7 @@ import requests
 # =========================================================
 # CONFIG  —  fill in your key before running
 # =========================================================
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_API_KEY = ""
 MODEL = "gpt-5.4"
 
 # Directory that contains this script (used for relative defaults)
