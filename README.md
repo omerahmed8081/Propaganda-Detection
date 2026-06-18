@@ -83,10 +83,12 @@ them up:
 | `PTC_ARTICLES_FOLDER`, `PTC_LABEL_FILE`, `PROTEXT_XLSX` | builders | raw PTC + ProText inputs |
 | `SPAN_DATA_DIR` | span builder → span `model.py` | processed SI parquets |
 | `TECHNIQUE_DATA_DIR` | technique builder → technique `model.py` | processed TC parquets |
+| `DEV_ARTICLES_FOLDER`, `DEV_SI_GOLD_FILE` | span `Evaluation.ipynb` | PTC dev articles + SI gold for scoring |
 
-`SPAN_TRAIN_PARQUET`, `TECHNIQUE_TRAIN_PARQUET`, etc. are derived automatically
-from those two dirs. **Trained checkpoints are not configured here** — each
-experiment saves its best `.pt` in its own folder.
+`SPAN_TRAIN_PARQUET`, `TECHNIQUE_TRAIN_PARQUET`, `SI_SCORER`, etc. are derived
+automatically (the technique notebooks evaluate on `TECHNIQUE_TEST_PARQUET`).
+**Trained checkpoints are not configured here** — each experiment loads/saves
+its best `.pt` in its own folder.
 
 ---
 

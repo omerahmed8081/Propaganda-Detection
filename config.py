@@ -10,6 +10,8 @@ best `.pt` inside its own folder.
 """
 from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parent   # repo root (this file's directory)
+
 # ---------------------------------------------------------------------------
 # 1. RAW DATA  (inputs to the data_preparation notebooks)
 # ---------------------------------------------------------------------------
@@ -41,3 +43,20 @@ SPAN_VAL_PARQUET   = _p(SPAN_DATA_DIR, "val.parquet")
 TECHNIQUE_TRAIN_PARQUET = _p(TECHNIQUE_DATA_DIR, "train.parquet")
 TECHNIQUE_VAL_PARQUET   = _p(TECHNIQUE_DATA_DIR, "val.parquet")
 TECHNIQUE_TEST_PARQUET  = _p(TECHNIQUE_DATA_DIR, "test.parquet")
+
+
+# ---------------------------------------------------------------------------
+# 3. EVALUATION  (paths used by the experiments' Evaluation.ipynb notebooks)
+# ---------------------------------------------------------------------------
+# Span Identification — span_identification/*/Evaluation.ipynb
+DEV_ARTICLES_FOLDER = ""   # PTC dev-articles folder
+DEV_SI_GOLD_FILE    = ""   # PTC dev-task-SI.labels (gold spans)
+SI_SCORER = str(_ROOT / "span_identification" / "task-SI_scorer.py")  # in-repo
+
+# Technique Classification — technique_classification/*/Evaluation.ipynb
+# Evaluated on TECHNIQUE_TEST_PARQUET (defined above). The TC scorer and the
+# techniques-list file live inside each experiment folder, so the notebooks
+# reference them by their local filenames (not configured here).
+#
+# Note: each experiment loads its own trained checkpoint by filename from its
+# own folder — checkpoints are intentionally not configured here.
