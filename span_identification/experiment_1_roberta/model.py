@@ -1,12 +1,6 @@
 import pandas as pd
-import os
-from sklearn.model_selection import train_test_split
 import torch
-from torch.utils.data import Dataset
-from transformers import AutoTokenizer
 import numpy as np
-import os
-import math
 import random
 from dataclasses import dataclass
 from collections import defaultdict
@@ -16,8 +10,6 @@ from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warm
 from torchcrf import CRF
 import spacy
 from tqdm.auto import tqdm
-import re
-import pandas as pd
 import logging
 
 # =========================================================
@@ -817,8 +809,6 @@ def run_training(train_data, val_data, cfg: CFG):
         num_training_steps=total_steps
     )
 
-    scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
-
     best_val_f1 = -1
     best_state = None
 
@@ -847,17 +837,7 @@ def run_training(train_data, val_data, cfg: CFG):
             torch.save(best_state, cfg.save_path)
             print(f"Saved best model to {cfg.save_path}")
 
-    # # -------- Load best and test
-    # ckpt = torch.load(cfg.save_path, map_location=device)
-    # model.load_state_dict(ckpt["model_state_dict"])
-
-    # test_metrics, test_pred_spans = evaluate(model, test_loader, test_articles, device)
-
-    # print("\n===== TEST RESULTS =====")
-    # for k, v in test_metrics.items():
-    #     print(f"{k}: {v:.4f}")
     return model, tokenizer, pos_vocab, ner_vocab, train_ds, val_ds
-    return model, tokenizer, pos_vocab, ner_vocab, test_pred_spans, train_ds, val_ds, test_ds
 
 
 

@@ -17,7 +17,6 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 import logging
-import json
 # =========================================================
 # 1. CONFIG
 # =========================================================
@@ -744,21 +743,6 @@ def decode_bioes_token_spans(tag_seq, offsets):
     return spans
 
 
-# def merge_overlapping_spans(spans):
-#     if not spans:
-#         return []
-
-#     spans = sorted(spans, key=lambda x: (x[0], x[1]))
-#     merged = [spans[0]]
-
-#     for s, e in spans[1:]:
-#         last_s, last_e = merged[-1]
-#         if s <= last_e:
-#             merged[-1] = (last_s, max(last_e, e))
-#         else:
-#             merged.append((s, e))
-
-#     return merged
 def merge_overlapping_spans(spans, max_gap=5):
     spans = sorted(spans)
     merged = []
@@ -1058,7 +1042,6 @@ def main():
     # 1. Setup Logging (Optional but recommended for scripts)
     logging.basicConfig(level=logging.INFO)
     print("🚀 Starting Training Pipeline...")
-    import random
 
 
     # 2. Load Data

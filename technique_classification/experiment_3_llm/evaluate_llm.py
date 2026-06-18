@@ -16,7 +16,6 @@ Run from LLM/:
 import ast
 import json
 import os
-import sys
 import pandas as pd
 
 RESULTS_CSV = os.path.join(os.path.dirname(__file__), "output", "results.csv")

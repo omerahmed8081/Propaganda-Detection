@@ -988,15 +988,6 @@ def run_training(train_data, val_data, test_data, cfg: CFG):
             torch.save(best_state, cfg.save_path)
             print(f"Saved best model to {cfg.save_path}")
 
-    ckpt = torch.load(cfg.save_path, map_location=device)
-    model.load_state_dict(ckpt["model_state_dict"])
-
-    test_metrics, test_pred_spans = evaluate(model, test_loader, test_articles, device)
-
-    print("\n===== TEST RESULTS =====")
-    for k, v in test_metrics.items():
-        print(f"{k}: {v:.4f}")
-
     return model, tokenizer, pos_vocab, ner_vocab, train_ds, val_ds
 
 
@@ -1027,13 +1018,12 @@ def main():
         ner_scale=0.3,
         discourse_scale=0.3,
     )
-    model, tokenizer, pos_vocab, ner_vocab, test_pred_spans, train_ds, val_ds, test_ds = run_training(
+    model, tokenizer, pos_vocab, ner_vocab, train_ds, val_ds = run_training(
         train_data=train_data,
         val_data=val_data,
         cfg=cfg
     )
 
-    
     print(f"✅ Training complete. Model saved to {cfg.save_path}")
 
 if __name__ == "__main__":

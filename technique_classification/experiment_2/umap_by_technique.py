@@ -9,7 +9,6 @@ Run from Experiment_2_discourse_model/:
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import torch
@@ -21,7 +20,7 @@ from umap import UMAP
 import os, sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from model import CFG, TechniqueDataset, parse_labels, build_label_map
+from model import CFG, TechniqueDataset, parse_labels
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 HERE      = os.path.dirname(os.path.abspath(__file__))
@@ -116,7 +115,7 @@ def main():
     # 2. Load checkpoint
     ckpt     = torch.load(CKPT, map_location=CFG.device)
     label2id = ckpt["label2id"]
-    id2label = ckpt["id2label"]
+    ckpt["id2label"]
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
 
     # 3. Build dataset (reuses Experiment-2's TechniqueDataset)
@@ -147,7 +146,7 @@ def main():
     # 7. Assign colours
     all_techs = sorted(set(techniques_per_span))
     tech2color = {t: PALETTE[i % len(PALETTE)] for i, t in enumerate(all_techs)}
-    colors     = [tech2color[t] for t in techniques_per_span]
+    [tech2color[t] for t in techniques_per_span]
 
     # 8. Save embeddings + labels for reuse
     df_out = pd.DataFrame({

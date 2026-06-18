@@ -16,11 +16,6 @@ from model import (
     collate_fn,
     decode_bioes_token_spans,
     merge_overlapping_spans,
-    token_level_f1,
-    exact_span_f1,
-    build_article_records,
-    build_gold_spans_by_article,
-    LABEL2ID,
     NUM_LABELS,
     CFG
 )

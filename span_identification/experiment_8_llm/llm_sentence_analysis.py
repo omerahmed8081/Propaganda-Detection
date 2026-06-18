@@ -18,13 +18,11 @@ Three evaluation modes are run:
 
 import os
 import re
-import json
 from collections import defaultdict
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -308,9 +306,6 @@ def per_span_verdict(gold_by_article, pred_by_article, texts):
                 overlapping = [(ps, pe) for ps, pe in pred
                                if max(0, min(pe, ge) - max(ps, gs)) > 0]
                 if overlapping:
-                    # compute best recall credit
-                    best_cov = max(max(0, min(pe, ge) - max(ps, gs)) / span_len
-                                   for ps, pe in overlapping) if span_len else 0
                     verdict = "char_overlap"
                 else:
                     # sentence level
@@ -526,7 +521,7 @@ def plot_per_article_recall(sentence_result, out_path):
         p = llm_by_art.get(aid, [])
         # official recall for this article
         if g:
-            texts = load_articles(ART_DIR)
+            load_articles(ART_DIR)
             r_num = sum(
                 max((max(0, min(pe, ge) - max(ps, gs)) / (ge - gs)
                      for ps, pe in p), default=0.0)
@@ -566,8 +561,8 @@ def main():
     llm  = load_labels(LLM_FILE)
     texts = load_articles(ART_DIR)
 
-    total_gold_spans = sum(len(v) for v in gold.values())
-    total_llm_spans  = sum(len(v) for v in llm.values())
+    sum(len(v) for v in gold.values())
+    sum(len(v) for v in llm.values())
 
     # ── 1. Official partial-overlap ─────────────────────────────────────────
     P, R, F, pn, pd_, rn, rd = partial_overlap_f1(gold, llm)

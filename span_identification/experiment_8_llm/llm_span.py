@@ -287,7 +287,7 @@ def predict_spans(df, new_article):
         "parsed_spans": parsed,
         "filtered_spans": filtered
     }
-import pandas as pd
+
 
 def predict_on_dataset(train_df, test_df, num_articles=5):
 

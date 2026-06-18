@@ -49,7 +49,6 @@ propaganda-detection/
 
 Each supervised experiment folder contains:
 - `model.py` — model definition **and** the training entry point (`python model.py`)
-- a training notebook (`*.ipynb`) — the interactive version used during development
 - `Evaluation.ipynb` + `evaluation_helper*.py` — scoring against the official scorer
 
 ---
