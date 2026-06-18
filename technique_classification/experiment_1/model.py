@@ -1,3 +1,8 @@
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
+import config
+
 # =========================================================
 # Technique Classification - FINAL WORKING VERSION
 # =========================================================
@@ -272,9 +277,9 @@ def run_training(train_df, val_df):
 # =========================================================
 if __name__ == "__main__":
 
-    train_data = pd.read_parquet("/home/omer_ahmed/Experiments/Technique_classification/processed_span_data/train.parquet")
-    val_data = pd.read_parquet("/home/omer_ahmed/Experiments/Technique_classification/processed_span_data/val.parquet")
-    test_data = pd.read_parquet("/home/omer_ahmed/Experiments/Technique_classification/processed_span_data/test.parquet")
+    train_data = pd.read_parquet(config.TECHNIQUE_TRAIN_PARQUET)
+    val_data = pd.read_parquet(config.TECHNIQUE_VAL_PARQUET)
+    test_data = pd.read_parquet(config.TECHNIQUE_TEST_PARQUET)
 
     # 🔥 CRITICAL FIX (YOU WERE MISSING THIS)
     train_data["techniques"] = train_data["techniques"].apply(parse_labels)

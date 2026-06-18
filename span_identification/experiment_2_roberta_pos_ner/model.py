@@ -1,3 +1,8 @@
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
+import config
+
 import pandas as pd
 import torch
 import numpy as np
@@ -827,8 +832,8 @@ def main():
     print("🚀 Starting Training Pipeline...")
 
     # 2. Load Data
-    train_data = pd.read_parquet("/home/omer_ahmed/Experiments/Span-models/processed_span_data/train.parquet")
-    val_data = pd.read_parquet("/home/omer_ahmed/Experiments/Span-models/processed_span_data/val.parquet")
+    train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
+    val_data = pd.read_parquet(config.SPAN_VAL_PARQUET)
     train_data.drop(columns=["span_text"], inplace=True)
     val_data.drop(columns=["span_text"], inplace=True)
 

@@ -22,6 +22,7 @@ evaluated on *gold* spans, not on spans predicted by the SI model.
 ```
 propaganda-detection/
 ├── README.md                      ← you are here
+├── config.py                      ← central paths (raw data, processed data) — set these first
 ├── requirements.txt
 ├── data_preparation/
 │   ├── README.md                       ← how to build the parquets
@@ -71,6 +72,24 @@ less, but training on CPU is impractical.
 
 ---
 
+## Configuration
+
+All data paths live in one place — [`config.py`](config.py) at the repo root.
+Set them once and both the dataset builders and the model training scripts pick
+them up:
+
+| Setting | Used by | Meaning |
+|---------|---------|---------|
+| `PTC_ARTICLES_FOLDER`, `PTC_LABEL_FILE`, `PROTEXT_XLSX` | builders | raw PTC + ProText inputs |
+| `SPAN_DATA_DIR` | span builder → span `model.py` | processed SI parquets |
+| `TECHNIQUE_DATA_DIR` | technique builder → technique `model.py` | processed TC parquets |
+
+`SPAN_TRAIN_PARQUET`, `TECHNIQUE_TRAIN_PARQUET`, etc. are derived automatically
+from those two dirs. **Trained checkpoints are not configured here** — each
+experiment saves its best `.pt` in its own folder.
+
+---
+
 ## 1. Build the dataset
 
 The experiments use two datasets: the **PTC** corpus (SemEval-2020 Task 11) and
@@ -84,11 +103,11 @@ the custom **ProText** dataset. There is one builder per task (see
 
 Each writes `train.parquet` and `val.parquet` into the output directory you set.
 
-> **Paths:** all paths in the builder notebooks are left **empty** — set them
-> before running (see the data-preparation README). The training/eval scripts
-> also use absolute paths, so update the `read_parquet(...)` paths near the top
-> of each `model.py` / `main()` and the path constants in the `Evaluation.ipynb`
-> notebooks to point at your output directory.
+> **Paths:** set all data paths once in [`config.py`](config.py) (raw PTC /
+> ProText inputs and the two processed-data output dirs). The builder notebooks
+> and the model training scripts both import from it, so there's nothing else to
+> edit. The `Evaluation.ipynb` notebooks still carry their own checkpoint/data
+> path constants — set those when you evaluate.
 
 ---
 
