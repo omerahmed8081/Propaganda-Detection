@@ -67,6 +67,3 @@ python llm_span.py --help     # run: few-shot prompting -> results.json (predict
 - **Evaluate:** `Evaluation.ipynb` — locates each predicted/gold span string in
   the article text to get character offsets, then scores with the official
   `task-SI_scorer.py`.
-
-`llm_sentence_analysis.py` is an optional, deeper sentence-level error analysis
-(uses external `.labels` paths — adjust them before running).
