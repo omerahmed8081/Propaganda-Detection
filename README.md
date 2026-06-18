@@ -72,11 +72,11 @@ less, but training on CPU is impractical.
 
 ## 1. Build the dataset
 
-Raw corpora are **not** redistributed here. See
-[`data_preparation/README.md`](data_preparation/README.md) for how to obtain the
-**PTC** corpus (SemEval-2020 Task 11) and the **ProText** dataset, then run
+The experiments use two datasets: the **PTC** corpus (SemEval-2020 Task 11) and
+the custom **ProText** dataset. Run
 [`data_preparation/build_dataset.ipynb`](data_preparation/build_dataset.ipynb)
-to produce the processed parquet files:
+(see [`data_preparation/README.md`](data_preparation/README.md)) to produce the
+processed parquet files:
 
 ```
 processed_span_data/
