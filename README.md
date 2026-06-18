@@ -24,8 +24,9 @@ propaganda-detection/
 ├── README.md                      ← you are here
 ├── requirements.txt
 ├── data_preparation/
-│   ├── README.md                  ← how to obtain raw data + build the parquets
-│   └── build_dataset.ipynb        ← PTC + ProText → train/val/dev/test parquets
+│   ├── README.md                       ← how to build the parquets
+│   ├── build_span_dataset.ipynb        ← PTC + ProText → SI parquets (drops techniques)
+│   └── build_technique_dataset.ipynb   ← PTC + ProText → TC parquets (keeps techniques)
 │
 ├── span_identification/           ← Task 1 (SI)
 │   ├── README.md
@@ -73,27 +74,21 @@ less, but training on CPU is impractical.
 ## 1. Build the dataset
 
 The experiments use two datasets: the **PTC** corpus (SemEval-2020 Task 11) and
-the custom **ProText** dataset. Run
-[`data_preparation/build_dataset.ipynb`](data_preparation/build_dataset.ipynb)
-(see [`data_preparation/README.md`](data_preparation/README.md)) to produce the
-processed parquet files:
+the custom **ProText** dataset. There is one builder per task (see
+[`data_preparation/README.md`](data_preparation/README.md)):
 
-```
-processed_span_data/
-├── train.parquet   # columns: article_id, span_start, span_end, article_text, span_text, techniques
-├── val.parquet
-├── dev.parquet
-└── test.parquet
-```
+- [`build_span_dataset.ipynb`](data_preparation/build_span_dataset.ipynb) — for
+  Span Identification (drops the `techniques` column).
+- [`build_technique_dataset.ipynb`](data_preparation/build_technique_dataset.ipynb)
+  — for Technique Classification (keeps `techniques`).
 
-The same parquets feed **both** tasks: SI uses `span_start`/`span_end`, TC uses
-`techniques` together with the span text.
+Each writes `train.parquet` and `val.parquet` into the output directory you set.
 
-> **Paths:** the training/eval scripts currently use absolute paths
-> (e.g. `/home/.../processed_span_data/train.parquet`). After building the data,
-> update the `read_parquet(...)` paths near the top of each `model.py` /
-> `main()` and the path constants in the `Evaluation.ipynb` notebooks to point
-> at your local copies.
+> **Paths:** all paths in the builder notebooks are left **empty** — set them
+> before running (see the data-preparation README). The training/eval scripts
+> also use absolute paths, so update the `read_parquet(...)` paths near the top
+> of each `model.py` / `main()` and the path constants in the `Evaluation.ipynb`
+> notebooks to point at your output directory.
 
 ---
 
