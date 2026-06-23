@@ -1,3 +1,4 @@
+# Span model with POS/NER and discourse features and a class-weighted loss.
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
@@ -23,9 +24,6 @@ from transformers import (
 )
 import logging
 
-# =========================================================
-# 1. CONFIG
-# =========================================================
 @dataclass
 class CFG:
     model_name: str = "roberta-large"
@@ -49,16 +47,11 @@ class CFG:
     dropout: float = 0.3
     save_path: str = "best_span_roberta_pos_ner_discourse_weighted_2.pt"
 
-    # weighted loss settings
-    class_weights: tuple = (1.0, 3.0, 3.0, 3.0, 3.0)   # O, B, I, E, S
+    class_weights: tuple = (1.0, 3.0, 3.0, 3.0, 3.0)
     ce_loss_weight: float = 0.5
     crf_loss_weight: float = 1.0
 
 
-# =========================================================
-# 2. LABELS
-# BIOES for propaganda span detection
-# =========================================================
 LABEL2ID = {
     "O": 0,
     "B-PROP": 1,
@@ -70,9 +63,6 @@ ID2LABEL = {v: k for k, v in LABEL2ID.items()}
 NUM_LABELS = len(LABEL2ID)
 
 
-# =========================================================
-# 3. REPRODUCIBILITY
-# =========================================================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -80,10 +70,6 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
 
 
-# =========================================================
-# 4. ARTICLE-LEVEL RECORDS
-# Convert row-per-span dataframe into one row per article
-# =========================================================
 def build_article_records(df: pd.DataFrame):
     records = []
 
@@ -119,9 +105,6 @@ def build_article_records(df: pd.DataFrame):
     return records
 
 
-# =========================================================
-# 5. SPACY-BASED POS / NER VOCAB BUILDING
-# =========================================================
 def build_pos_ner_vocab(article_records, nlp):
     """
     Build vocabularies from training articles only.
@@ -149,10 +132,6 @@ def build_pos_ner_vocab(article_records, nlp):
     return pos_vocab, ner_vocab
 
 
-# =========================================================
-# 6. CHAR-LEVEL AUXILIARY MAPS
-# POS / NER per character position
-# =========================================================
 def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
     """
     Returns two arrays of length len(text):
@@ -164,13 +143,11 @@ def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
 
     doc = nlp(text)
 
-    # POS from tokens
     for tok in doc:
         pos_id = pos_vocab.get(tok.pos_, 0)
         start, end = tok.idx, tok.idx + len(tok.text)
         pos_char_ids[start:end] = pos_id
 
-    # NER from entities
     for ent in doc.ents:
         ner_id = ner_vocab.get(ent.label_, 0)
         start, end = ent.start_char, ent.end_char
@@ -179,9 +156,6 @@ def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
     return pos_char_ids, ner_char_ids
 
 
-# =========================================================
-# 6B. CHAR-LEVEL DISCOURSE FEATURE MAP
-# =========================================================
 DISCOURSE_MARKERS = {
     "contrast": {"but", "however", "although", "though", "yet", "while", "whereas"},
     "cause": {"because", "since", "therefore", "thus", "hence", "so"},
@@ -222,11 +196,9 @@ def build_char_discourse_feature_map(text, nlp):
     doc = nlp(text)
     sents = list(doc.sents) if doc.has_annotation("SENT_START") else [doc]
 
-    # document-relative position
     for i in range(n_chars):
         feats[i, 1] = i / max(1, n_chars - 1)
 
-    # paragraph spans from blank-line split
     paragraph_spans = []
     cursor = 0
     blocks = text.split("\n\n")
@@ -250,7 +222,6 @@ def build_char_discourse_feature_map(text, nlp):
         for i in range(p_start, p_end):
             feats[i, 2] = (i - p_start) / max(1, plen - 1)
 
-    # quote mask
     quote_mask = np.zeros(n_chars, dtype=np.float32)
     in_quote = False
     for i, ch in enumerate(text):
@@ -260,7 +231,6 @@ def build_char_discourse_feature_map(text, nlp):
             quote_mask[i] = 1.0
     feats[:, 5] = quote_mask
 
-    # sentence-level features
     n_sents = len(sents)
     for sent_idx, sent in enumerate(sents):
         s_start = sent.start_char
@@ -302,10 +272,6 @@ def build_char_discourse_feature_map(text, nlp):
     return feats
 
 
-# =========================================================
-# 7. GOLD CHAR MASK
-# 1 for propaganda chars, 0 otherwise
-# =========================================================
 def build_gold_char_mask(text_len, spans):
     mask = np.zeros(text_len, dtype=np.int64)
     for s, e in spans:
@@ -316,10 +282,6 @@ def build_gold_char_mask(text_len, spans):
     return mask
 
 
-# =========================================================
-# 8. TOKEN TAGGING FROM CHAR SPANS
-# Convert token offsets -> BIOES labels
-# =========================================================
 def assign_bioes_from_offsets(offsets, gold_char_mask):
     """
     offsets: list of (start, end) for tokens in one window
@@ -372,10 +334,7 @@ def assign_bioes_from_offsets(offsets, gold_char_mask):
     return labels, crf_mask
 
 
-# =========================================================
-# 9. DATASET
-# Sliding windows + POS/NER + discourse alignment + BIOES labels
-# =========================================================
+# Dataset: sliding-window tokenisation and BIOES labels
 class PTCSpanDataset(Dataset):
     def __init__(self, article_records, tokenizer, nlp, pos_vocab, ner_vocab,
                  max_length=512, stride=384, is_train=True):
@@ -479,10 +438,7 @@ def collate_fn(batch):
     }
 
 
-# =========================================================
-# 10. MODEL
-# RoBERTa + POS + NER + discourse + BiLSTM + CRF
-# =========================================================
+# Model
 class TransformerSpanTagger(nn.Module):
     def __init__(
         self,
@@ -619,13 +575,11 @@ class TransformerSpanTagger(nn.Module):
             raise ValueError("Non-finite values detected in emissions")
 
         if labels is not None:
-            # 1) CRF loss
             crf_loss = -self.crf(emissions, labels, mask=crf_mask, reduction="token_mean")
 
             if not torch.isfinite(crf_loss):
                 raise ValueError("Non-finite CRF loss detected")
 
-            # 2) Weighted CE loss over valid tokens only
             valid_mask = crf_mask.view(-1)
             flat_emissions = emissions.view(-1, emissions.size(-1))[valid_mask]
             flat_labels = labels.view(-1)[valid_mask]
@@ -636,7 +590,6 @@ class TransformerSpanTagger(nn.Module):
             if not torch.isfinite(ce_loss):
                 raise ValueError("Non-finite CE loss detected")
 
-            # 3) Combined loss
             total_loss = self.crf_loss_weight * crf_loss + self.ce_loss_weight * ce_loss
 
             if not torch.isfinite(total_loss):
@@ -649,9 +602,6 @@ class TransformerSpanTagger(nn.Module):
             return preds
 
 
-# =========================================================
-# 11. TRAIN / EVAL UTILITIES
-# =========================================================
 def token_level_f1(gold_list, pred_list):
     """
     Micro-F1 over non-padding real tokens.
@@ -935,18 +885,16 @@ def evaluate(model, loader, article_records, device):
     return metrics, pred_spans_by_article
 
 
+# Training
 def run_training(train_data, val_data, cfg: CFG):
     set_seed(cfg.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # -------- Build article-level records
     train_articles = build_article_records(train_data)
     val_articles = build_article_records(val_data)
 
-    # -------- Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, use_fast=True)
 
-    # Need spaCy for POS/NER/discourse
     if cfg.pos_dim > 0 or cfg.ner_dim > 0 or cfg.discourse_dim > 0:
         nlp = spacy.load("en_core_web_sm", disable=["lemmatizer", "textcat"])
         if "parser" not in nlp.pipe_names and "senter" not in nlp.pipe_names:
@@ -957,7 +905,6 @@ def run_training(train_data, val_data, cfg: CFG):
         pos_vocab = {"<PAD>": 0}
         ner_vocab = {"<PAD>": 0}
 
-    # -------- Datasets
     train_ds = PTCSpanDataset(
         train_articles, tokenizer, nlp, pos_vocab, ner_vocab,
         max_length=cfg.max_length, stride=cfg.stride, is_train=True
@@ -967,7 +914,6 @@ def run_training(train_data, val_data, cfg: CFG):
         max_length=cfg.max_length, stride=cfg.stride, is_train=False
     )
 
-    # -------- Loaders
     train_loader = DataLoader(
         train_ds,
         batch_size=cfg.batch_size,
@@ -984,7 +930,6 @@ def run_training(train_data, val_data, cfg: CFG):
     )
 
 
-    # -------- Model
     model = TransformerSpanTagger(
         model_name=cfg.model_name,
         num_labels=NUM_LABELS,
@@ -1019,7 +964,6 @@ def run_training(train_data, val_data, cfg: CFG):
     best_val_f1 = -1
     best_state = None
 
-    # -------- Training loop
     for epoch in range(1, cfg.epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, scheduler, device)
 
@@ -1049,11 +993,9 @@ def run_training(train_data, val_data, cfg: CFG):
 
 
 def main():
-    # 1. Setup Logging (Optional but recommended for scripts)
     logging.basicConfig(level=logging.INFO)
     print("🚀 Starting Training Pipeline...")
 
-    # 2. Load Data
     train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
     val_data = pd.read_parquet(config.SPAN_VAL_PARQUET)
     train_data.drop(columns=["span_text"], inplace=True)

@@ -1,11 +1,9 @@
+# Technique classifier: RoBERTa-large with CLS pooling, multi-label.
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 import config
 
-# =========================================================
-# Technique Classification - FINAL WORKING VERSION
-# =========================================================
 
 import numpy as np
 import pandas as pd
@@ -18,9 +16,6 @@ from sklearn.metrics import f1_score
 from tqdm import tqdm
 
 
-# =========================================================
-# CONFIG
-# =========================================================
 class CFG:
     model_name = "roberta-large"
     max_length = 512
@@ -31,9 +26,6 @@ class CFG:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# =========================================================
-# LABEL PARSER (FINAL FIX)
-# =========================================================
 def parse_labels(x):
     if isinstance(x, np.ndarray):
         return x.tolist()
@@ -42,9 +34,6 @@ def parse_labels(x):
     return []
 
 
-# =========================================================
-# LABEL MAP
-# =========================================================
 def build_label_map(df):
     all_labels = set()
 
@@ -59,9 +48,7 @@ def build_label_map(df):
     return label2id, id2label
 
 
-# =========================================================
-# DATASET
-# =========================================================
+# Dataset
 class TechniqueDataset(Dataset):
     def __init__(self, df, tokenizer, label2id):
         self.samples = []
@@ -78,7 +65,6 @@ class TechniqueDataset(Dataset):
 
             span_text = text[start:end]
 
-            # context window
             left = max(0, start - 100)
             right = min(len(text), end + 100)
             context = text[left:right]
@@ -136,9 +122,7 @@ class TechniqueDataset(Dataset):
         }
 
 
-# =========================================================
-# MODEL
-# =========================================================
+# Model
 class TechniqueClassifier(nn.Module):
     def __init__(self, model_name, num_labels):
         super().__init__()
@@ -168,9 +152,6 @@ class TechniqueClassifier(nn.Module):
         return logits
 
 
-# =========================================================
-# TRAIN
-# =========================================================
 def train_one_epoch(model, loader, optimizer):
     model.train()
     total_loss = 0
@@ -196,9 +177,6 @@ def train_one_epoch(model, loader, optimizer):
     return total_loss / len(loader)
 
 
-# =========================================================
-# EVAL
-# =========================================================
 @torch.no_grad()
 def evaluate(model, loader):
     model.eval()
@@ -229,9 +207,7 @@ def evaluate(model, loader):
     return f1_score(all_labels, preds_bin, average="micro", zero_division=0)
 
 
-# =========================================================
-# TRAIN PIPELINE
-# =========================================================
+# Training
 def run_training(train_df, val_df):
 
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
@@ -257,7 +233,6 @@ def run_training(train_df, val_df):
         print(f"\nEpoch {epoch+1}")
         print(f"Loss: {loss:.4f} | F1: {f1:.4f}")
 
-        # 🔥 SAVE BEST MODEL
         if f1 > best_f1:
             best_f1 = f1
 
@@ -272,16 +247,12 @@ def run_training(train_df, val_df):
     return model, tokenizer, label2id, id2label
 
 
-# =========================================================
-# MAIN
-# =========================================================
 if __name__ == "__main__":
 
     train_data = pd.read_parquet(config.TECHNIQUE_TRAIN_PARQUET)
     val_data = pd.read_parquet(config.TECHNIQUE_VAL_PARQUET)
     test_data = pd.read_parquet(config.TECHNIQUE_TEST_PARQUET)
 
-    # 🔥 CRITICAL FIX (YOU WERE MISSING THIS)
     train_data["techniques"] = train_data["techniques"].apply(parse_labels)
     val_data["techniques"] = val_data["techniques"].apply(parse_labels)
     test_data["techniques"] = test_data["techniques"].apply(parse_labels)

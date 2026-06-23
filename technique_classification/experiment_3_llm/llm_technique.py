@@ -17,16 +17,11 @@ import time
 import pandas as pd
 import requests
 
-# =========================================================
-# CONFIG  —  fill in your key before running
-# =========================================================
 OPENAI_API_KEY = ""
 MODEL = "gpt-5.4"
 
-# Directory that contains this script (used for relative defaults)
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
-# All 14 propaganda techniques in this dataset
 ALL_TECHNIQUES = [
     "Appeal_to_Authority",
     "Appeal_to_fear-prejudice",
@@ -105,9 +100,6 @@ TECHNIQUE_DEFINITIONS = {
     ),
 }
 
-# =========================================================
-# DATA LOADING
-# =========================================================
 def load_data(data_file: str) -> pd.DataFrame:
     df = pd.read_parquet(data_file)
     df["techniques_list"] = df["techniques"].apply(
@@ -116,9 +108,6 @@ def load_data(data_file: str) -> pd.DataFrame:
     return df
 
 
-# =========================================================
-# FEW-SHOT EXAMPLE SELECTION
-# =========================================================
 def get_article_context(article_text: str, span_text: str, window: int = 250) -> str:
     """Return a ~500-char window of the article centred on the span."""
     idx = article_text.find(span_text)
@@ -153,9 +142,6 @@ def pick_examples_per_technique(df: pd.DataFrame) -> dict:
     return examples
 
 
-# =========================================================
-# PROMPT BUILDER
-# =========================================================
 def build_system_prompt() -> str:
     tech_block = "\n".join(
         f"  - {name}: {desc}" for name, desc in TECHNIQUE_DEFINITIONS.items()
@@ -201,9 +187,6 @@ Propaganda span: "{span_text}"
 Answer:"""
 
 
-# =========================================================
-# API CALL
-# =========================================================
 def call_gpt(system_prompt: str, user_prompt: str, max_retries: int = 3):
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
@@ -252,9 +235,6 @@ def call_gpt(system_prompt: str, user_prompt: str, max_retries: int = 3):
     return None
 
 
-# =========================================================
-# OUTPUT PARSER
-# =========================================================
 def parse_techniques(raw: str) -> list:
     if raw is None:
         return []
@@ -274,13 +254,9 @@ def parse_techniques(raw: str) -> list:
         except json.JSONDecodeError:
             pass
 
-    # Last resort: scan for known technique names
     return [t for t in ALL_TECHNIQUES if t in raw]
 
 
-# =========================================================
-# METRICS
-# =========================================================
 def compute_metrics(results: list) -> dict:
     tp = fp = fn = 0
     for r in results:
@@ -298,9 +274,6 @@ def compute_metrics(results: list) -> dict:
             "tp": tp, "fp": fp, "fn": fn}
 
 
-# =========================================================
-# MAIN PIPELINE
-# =========================================================
 def run(data_file: str, num_spans, output_dir: str):
     print(f"Loading data from {data_file}...")
     df = load_data(data_file)
@@ -360,9 +333,6 @@ def run(data_file: str, num_spans, output_dir: str):
     print(f"\nResults saved to: {output_dir}/")
 
 
-# =========================================================
-# ENTRY POINT
-# =========================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Few-shot GPT-5.4 propaganda technique classification"

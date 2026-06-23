@@ -1,11 +1,9 @@
+# Technique classifier: RoBERTa-large with CLS, span-mean and span-max pooling, multi-label.
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
 import config
 
-# =========================================================
-# Technique Classification - IMPROVED VERSION
-# =========================================================
 
 import numpy as np
 import pandas as pd
@@ -18,9 +16,6 @@ from sklearn.metrics import f1_score
 from tqdm import tqdm
 
 
-# =========================================================
-# CONFIG
-# =========================================================
 class CFG:
     model_name = "roberta-large"
     max_length = 512
@@ -30,9 +25,6 @@ class CFG:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# =========================================================
-# LABEL PARSER
-# =========================================================
 def parse_labels(x):
     if isinstance(x, np.ndarray):
         return x.tolist()
@@ -41,9 +33,6 @@ def parse_labels(x):
     return []
 
 
-# =========================================================
-# LABEL MAP
-# =========================================================
 def build_label_map(df):
     all_labels = set()
 
@@ -58,9 +47,6 @@ def build_label_map(df):
     return label2id, id2label
 
 
-# =========================================================
-# CLASS WEIGHTS
-# =========================================================
 def compute_class_weights(df, label2id):
     counts = np.zeros(len(label2id))
 
@@ -76,9 +62,7 @@ def compute_class_weights(df, label2id):
     return torch.tensor(weights, dtype=torch.float)
 
 
-# =========================================================
-# DATASET
-# =========================================================
+# Dataset
 class TechniqueDataset(Dataset):
     def __init__(self, df, tokenizer, label2id):
         self.samples = []
@@ -114,7 +98,7 @@ class TechniqueDataset(Dataset):
             self.samples.append({
                 "text": marked_text,
                 "label": label_vec,
-                "article_id": row["article_id"],   # 🔥 ADD
+                "article_id": row["article_id"],
                 "start": start,
                 "end": end
             })
@@ -151,15 +135,13 @@ class TechniqueDataset(Dataset):
             "labels": torch.tensor(item["label"], dtype=torch.float),
             "span_start": torch.tensor(span_start_token),
             "span_end": torch.tensor(span_end_token),
-            "article_id": item["article_id"],   # 🔥 ADD
-            "start": item["start"],             # 🔥 ADD
-            "end": item["end"],                 # 🔥 ADD
+            "article_id": item["article_id"],
+            "start": item["start"],
+            "end": item["end"],
         }
 
 
-# =========================================================
-# MODEL (UPGRADED)
-# =========================================================
+# Model
 class TechniqueClassifier(nn.Module):
     def __init__(self, model_name, num_labels, pos_weight=None):
         super().__init__()
@@ -169,7 +151,6 @@ class TechniqueClassifier(nn.Module):
 
         self.dropout = nn.Dropout(0.3)
 
-        # CLS + span_mean + span_max
         self.classifier = nn.Linear(hidden_size * 3, num_labels)
 
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -213,9 +194,6 @@ class TechniqueClassifier(nn.Module):
         return logits
 
 
-# =========================================================
-# TRAIN
-# =========================================================
 def train_one_epoch(model, loader, optimizer):
     model.train()
     total_loss = 0
@@ -244,9 +222,6 @@ def train_one_epoch(model, loader, optimizer):
     return total_loss / len(loader)
 
 
-# =========================================================
-# EVAL
-# =========================================================
 @torch.no_grad()
 def evaluate(model, loader):
     model.eval()
@@ -279,9 +254,7 @@ def evaluate(model, loader):
     return f1_score(all_labels, preds_bin, average="micro", zero_division=0)
 
 
-# =========================================================
-# TRAIN PIPELINE
-# =========================================================
+# Training
 def run_training(train_df, val_df):
 
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
@@ -302,7 +275,6 @@ def run_training(train_df, val_df):
         pos_weight=pos_weight
     ).to(CFG.device)
 
-    # 🔥 Different LR for encoder vs classifier
     optimizer = torch.optim.AdamW([
         {"params": model.encoder.parameters(), "lr": 2e-6},
         {"params": model.classifier.parameters(), "lr": 1e-4}
@@ -331,9 +303,6 @@ def run_training(train_df, val_df):
     return model, tokenizer, label2id, id2label
 
 
-# =========================================================
-# MAIN
-# =========================================================
 if __name__ == "__main__":
 
     train_data = pd.read_parquet(config.TECHNIQUE_TRAIN_PARQUET)

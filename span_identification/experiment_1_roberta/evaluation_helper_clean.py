@@ -1,4 +1,4 @@
-# evaluation_helper_clean.py
+# Run a trained span model on the dev articles and score it with the official scorer.
 
 import os
 import subprocess
@@ -9,7 +9,6 @@ from collections import defaultdict
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-# 🔥 import from your notebook file
 from model import (
     DebertaSpanTagger,
     PTCSpanDataset,
@@ -21,13 +20,9 @@ from model import (
 )
 
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
 def load_model(checkpoint_path, device):
     ckpt = torch.load(checkpoint_path, map_location=device)
 
-    # 🔥 FIX HERE
     if isinstance(ckpt["cfg"], dict):
         cfg = CFG(**ckpt["cfg"])
     else:
@@ -57,9 +52,6 @@ def load_model(checkpoint_path, device):
     return model, tokenizer, cfg, pos_vocab, ner_vocab
 
 
-# =========================================================
-# PREDICT SPANS
-# =========================================================
 @torch.no_grad()
 def predict_spans(model, loader, device):
     model.eval()
@@ -89,7 +81,6 @@ def predict_spans(model, loader, device):
             spans = decode_bioes_token_spans(preds[i], offsets)
             pred_spans_by_article_raw[article_id].extend(spans)
 
-    # merge overlapping spans
     pred_spans_by_article = {
         aid: merge_overlapping_spans(spans)
         for aid, spans in pred_spans_by_article_raw.items()
@@ -98,9 +89,6 @@ def predict_spans(model, loader, device):
     return pred_spans_by_article
 
 
-# =========================================================
-# DATA PREP FROM FOLDER
-# =========================================================
 def build_df_from_articles(articles_folder):
     rows = []
 
@@ -117,9 +105,6 @@ def build_df_from_articles(articles_folder):
     return pd.DataFrame(rows)
 
 
-# =========================================================
-# SAVE PREDICTIONS
-# =========================================================
 def save_predictions(pred_spans, output_file):
     with open(output_file, "w") as f:
         for aid in sorted(pred_spans.keys()):
@@ -128,9 +113,6 @@ def save_predictions(pred_spans, output_file):
                     f.write(f"{aid}\t{s}\t{e}\n")
 
 
-# =========================================================
-# RUN OFFICIAL SCORER
-# =========================================================
 def run_official_scorer(scorer_script, pred_file, gold_file):
     result = subprocess.run(
         ["python", scorer_script, "-s", pred_file, "-r", gold_file],
@@ -145,9 +127,6 @@ def run_official_scorer(scorer_script, pred_file, gold_file):
     return result
 
 
-# =========================================================
-# MAIN FUNCTION (WHAT YOU WANT)
-# =========================================================
 def predict_and_score_with_official_scorer(
     checkpoint_path,
     articles_folder,
@@ -156,18 +135,16 @@ def predict_and_score_with_official_scorer(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # load model
     model, tokenizer, cfg, pos_vocab, ner_vocab = load_model(
         checkpoint_path, device
     )
 
-    # build dataset
     df = build_df_from_articles(articles_folder)
     records = [
     {
         "article_id": str(row["article_id"]),
         "article_text": row["article_text"],
-        "gold_spans": []   # 🔥 IMPORTANT: no labels
+        "gold_spans": []
     }
     for _, row in df.iterrows()
 ]
@@ -190,17 +167,14 @@ def predict_and_score_with_official_scorer(
         collate_fn=collate_fn
     )
 
-    # predict
     pred_spans = predict_spans(model, loader, device)
 
-    # save temp file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".labels")
     pred_file = tmp.name
     tmp.close()
 
     save_predictions(pred_spans, pred_file)
 
-    # run scorer
     run_official_scorer(
         scorer_script_path,
         pred_file,

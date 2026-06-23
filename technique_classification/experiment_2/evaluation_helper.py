@@ -1,6 +1,4 @@
-# =========================================================
-# EVALUATION HELPER FOR SEMEVAL TC TASK
-# =========================================================
+# Generate technique predictions and score them with the official scorer.
 
 import os
 import subprocess
@@ -10,9 +8,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-# =========================================================
-# 1. CREATE GOLD FILE
-# =========================================================
 def create_gold_file(df, output_path):
     """
     Converts dataframe -> SemEval gold format
@@ -35,9 +30,6 @@ def create_gold_file(df, output_path):
     print(f"✅ Gold file saved to: {output_path}")
 
 
-# =========================================================
-# 2. GENERATE PREDICTIONS FROM MODEL
-# =========================================================
 @torch.no_grad()
 def generate_predictions(
     model,
@@ -72,10 +64,8 @@ def generate_predictions(
             start = batch["start"][i]
             end = batch["end"][i]
 
-            # 🔥 PREDICT BASED ON CONFIDENCE
             pred_labels = np.where(probs[i] > threshold)[0]
 
-            # 🔥 SAFETY: ensure at least 1 label
             if len(pred_labels) == 0:
                 pred_labels = [np.argmax(probs[i])]
 
@@ -86,9 +76,6 @@ def generate_predictions(
 
     return results
 
-# =========================================================
-# 3. SAVE SUBMISSION FILE
-# =========================================================
 def save_submission(pred_lines, output_path):
     with open(output_path, "w") as f:
         f.write("\n".join(pred_lines))
@@ -96,9 +83,6 @@ def save_submission(pred_lines, output_path):
     print(f"✅ Submission file saved to: {output_path}")
 
 
-# =========================================================
-# 4. RUN SEMEVAL SCORER
-# =========================================================
 def run_scorer(
     scorer_script_path,
     submission_path,
@@ -127,9 +111,6 @@ def run_scorer(
         print("⚠️ STDERR:\n", result.stderr)
 
 
-# =========================================================
-# 5. FULL PIPELINE FUNCTION
-# =========================================================
 def evaluate_full_pipeline(
     model,
     test_df,
@@ -150,13 +131,10 @@ def evaluate_full_pipeline(
     gold_path = os.path.join(output_dir, "gold.tsv")
     submission_path = os.path.join(output_dir, "submission.tsv")
 
-    # 1. create gold
     create_gold_file(test_df, gold_path)
 
-    # 2. dataset
     test_dataset = dataset_class(test_df, tokenizer, label2id)
 
-    # 3. predictions
     pred_lines = generate_predictions(
         model,
         test_dataset,
@@ -166,10 +144,8 @@ def evaluate_full_pipeline(
         device=device
     )
 
-    # 4. save submission
     save_submission(pred_lines, submission_path)
 
-    # 5. run scorer
     run_scorer(
         scorer_script_path,
         submission_path,

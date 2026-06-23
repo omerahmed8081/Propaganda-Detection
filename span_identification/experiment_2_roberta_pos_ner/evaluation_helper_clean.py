@@ -1,3 +1,4 @@
+# Run a trained span model on the dev articles and score it with the official scorer.
 import os
 import torch
 import pandas as pd
@@ -9,7 +10,6 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 
-# 🔥 import your model file
 from model import (
     DebertaSpanTagger,
     PTCSpanDataset,
@@ -20,13 +20,9 @@ from model import (
     NUM_LABELS
 )
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
 def load_model(checkpoint_path, device):
     ckpt = torch.load(checkpoint_path, map_location=device)
 
-    # FIX cfg dict
     if isinstance(ckpt["cfg"], dict):
         cfg = CFG(**ckpt["cfg"])
     else:
@@ -55,17 +51,11 @@ def load_model(checkpoint_path, device):
     return model, tokenizer, cfg, pos_vocab, ner_vocab
 
 
-# =========================================================
-# LOAD SPACY
-# =========================================================
 def load_spacy():
     nlp = spacy.load("en_core_web_sm", disable=["lemmatizer", "textcat"])
     return nlp
 
 
-# =========================================================
-# BUILD UNLABELED DATA
-# =========================================================
 def build_df_from_articles(folder):
     rows = []
 
@@ -93,9 +83,6 @@ def build_unlabeled_records(df):
     ]
 
 
-# =========================================================
-# PREDICT
-# =========================================================
 @torch.no_grad()
 def predict_spans(model, loader, device):
     model.eval()
@@ -131,9 +118,6 @@ def predict_spans(model, loader, device):
     }
 
 
-# =========================================================
-# SAVE PREDICTIONS
-# =========================================================
 def save_predictions(pred_spans, output_file):
     with open(output_file, "w") as f:
         for aid in sorted(pred_spans.keys()):
@@ -142,9 +126,6 @@ def save_predictions(pred_spans, output_file):
                     f.write(f"{aid}\t{s}\t{e}\n")
 
 
-# =========================================================
-# RUN SCORER
-# =========================================================
 def run_official_scorer(script, pred_file, gold_file):
     result = subprocess.run(
         ["python", script, "-s", pred_file, "-r", gold_file],
@@ -157,9 +138,6 @@ def run_official_scorer(script, pred_file, gold_file):
         print("ERROR:", result.stderr)
 
 
-# =========================================================
-# MAIN FUNCTION
-# =========================================================
 def predict_and_score_with_official_scorer(
     checkpoint_path,
     articles_folder,
@@ -168,14 +146,12 @@ def predict_and_score_with_official_scorer(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # load model
     model, tokenizer, cfg, pos_vocab, ner_vocab = load_model(
         checkpoint_path, device
     )
 
     nlp = load_spacy()
 
-    # data
     df = build_df_from_articles(articles_folder)
     records = build_unlabeled_records(df)
 
@@ -197,17 +173,14 @@ def predict_and_score_with_official_scorer(
         collate_fn=collate_fn
     )
 
-    # predict
     pred_spans = predict_spans(model, loader, device)
 
-    # temp file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".labels")
     pred_file = tmp.name
     tmp.close()
 
     save_predictions(pred_spans, pred_file)
 
-    # score
     run_official_scorer(
         scorer_script_path,
         pred_file,

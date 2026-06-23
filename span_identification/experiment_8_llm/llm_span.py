@@ -1,3 +1,4 @@
+# Few-shot LLM baseline for span identification.
 import pandas as pd
 import requests
 import json
@@ -16,7 +17,6 @@ def remove_spans_from_text(text, spans):
         pattern = re.escape(span)
         clean_text = re.sub(pattern, "", clean_text, count=1)
 
-    # Clean extra spaces
     clean_text = re.sub(r"\s+", " ", clean_text).strip()
 
     return clean_text
@@ -29,9 +29,6 @@ def build_examples_from_ids(df, positive_ids, negative_ids, exclude_article=None
 
     grouped = df.groupby("article_id")
 
-    # =====================
-    # POSITIVE EXAMPLES
-    # =====================
     for pid in positive_ids:
         if pid not in grouped.groups:
             continue
@@ -52,9 +49,6 @@ def build_examples_from_ids(df, positive_ids, negative_ids, exclude_article=None
             "spans": spans
         })
 
-    # =====================
-    # NEGATIVE EXAMPLES
-    # =====================
     for nid in negative_ids:
         if nid not in grouped.groups:
             continue
@@ -74,9 +68,6 @@ def build_examples_from_ids(df, positive_ids, negative_ids, exclude_article=None
         })
 
     return positive_examples, negative_examples
-# =========================
-# 2. BUILD PROMPT (IMPROVED)
-# =========================
 def build_prompt(positive_examples, negative_examples, new_article):
 
     system_prompt = """You are an expert in propaganda detection.
@@ -99,9 +90,6 @@ def build_prompt(positive_examples, negative_examples, new_article):
     - Output ONLY final JSON list
     """
 
-    # =====================
-    # POSITIVE EXAMPLES
-    # =====================
     pos_text = ""
     for i, ex in enumerate(positive_examples):
         pos_text += f"""
@@ -116,9 +104,6 @@ Answer:
 {json.dumps(ex['spans'], ensure_ascii=False)}
 """
 
-    # =====================
-    # NEGATIVE EXAMPLES
-    # =====================
     neg_text = ""
     for i, ex in enumerate(negative_examples):
         neg_text += f"""
@@ -133,9 +118,6 @@ Answer:
 []
 """
 
-    # =====================
-    # FINAL TASK
-    # =====================
     user_prompt = f"""
 {pos_text}
 
@@ -155,9 +137,6 @@ Return ONLY:
     return system_prompt, user_prompt
 
 
-# =========================
-# 3. CALL OPENROUTER
-# =========================
 
 
 def call_openrouter(system_prompt, user_prompt, max_retries=3):
@@ -208,14 +187,10 @@ def call_openrouter(system_prompt, user_prompt, max_retries=3):
     return None
 
 
-# =========================
-# 4. SAFE JSON PARSER
-# =========================
 def parse_output(output):
     try:
         return json.loads(output)
     except:
-        # Try to extract JSON manually
         match = re.search(r"\[.*\]", output, re.DOTALL)
         if match:
             try:
@@ -225,33 +200,24 @@ def parse_output(output):
         return []
 
 
-# =========================
-# 5. POST-PROCESS FILTER
-# =========================
 def filter_spans(spans):
     filtered = []
 
     for s in spans:
         s = s.strip()
 
-        # Remove short spans
         if len(s.split()) <= 2:
             continue
 
-        # Remove numeric / weak spans
         if s.isdigit():
             continue
 
-        # Deduplicate
         if s not in filtered:
             filtered.append(s)
 
     return filtered
 
 
-# =========================
-# 6. FULL PIPELINE
-# =========================
 def predict_spans(df, new_article):
 
     positive_ids = ["111111112", "111111113", "111111115"]
@@ -292,7 +258,6 @@ def predict_on_dataset(train_df, test_df, num_articles=5):
 
     results = []
 
-    # Get unique articles
     unique_articles = test_df["article_id"].unique()
 
     if num_articles is not None:
@@ -345,7 +310,6 @@ def build_partial_match_df(results_df):
         for pred in predicted_spans:
             for gold in true_spans:
 
-                # Check partial match
                 if pred in gold or gold in pred:
 
                     overlap = get_best_overlap(pred, gold)
@@ -376,11 +340,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Load data
     data = pd.read_parquet("processed_span_data/data.parquet")
     dev_data = pd.read_parquet("processed_span_data/dev.parquet")
 
-    # Decide number of articles
     if args.num_articles is not None:
         num_articles = args.num_articles
         print(f"Running on {num_articles} articles...")
@@ -388,17 +350,15 @@ if __name__ == "__main__":
         num_articles = len(dev_data["article_id"].unique())
         print(f"Running on ALL articles ({num_articles})...")
 
-    # Decide dataset
     if args.mode == "val":
         test_data = dev_data
         print("Running on VALIDATION dataset")
     elif args.mode == "train":
         test_data = data
         print("Running on TRAIN dataset")
-    # Run prediction
     results_df = predict_on_dataset(
-        data,          # training data still used for examples
-        test_data,     # this changes based on mode
+        data,
+        test_data,
         num_articles=num_articles
     )
     partial_matches_df = build_partial_match_df(results_df)

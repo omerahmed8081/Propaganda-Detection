@@ -1,3 +1,4 @@
+# Run a trained span model on the dev articles and score it with the official scorer.
 import os
 import torch
 import pandas as pd
@@ -9,7 +10,6 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 
-# 🔥 import YOUR model
 from model import (
     TransformerSpanTagger,
     PTCSpanDataset,
@@ -20,13 +20,9 @@ from model import (
     NUM_LABELS
 )
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
 def load_model(checkpoint_path, device):
     ckpt = torch.load(checkpoint_path, map_location=device)
 
-    # FIX CFG mismatch
     if isinstance(ckpt["cfg"], dict):
         cfg_dict = ckpt["cfg"]
         valid_keys = CFG.__dataclass_fields__.keys()
@@ -58,7 +54,6 @@ def load_model(checkpoint_path, device):
         discourse_scale=cfg.discourse_scale
     )
 
-    # 🔥 VERY IMPORTANT
     model.load_state_dict(ckpt["model_state_dict"], strict=False)
 
     model.to(device)
@@ -69,9 +64,6 @@ def load_model(checkpoint_path, device):
     return model, tokenizer, cfg, pos_vocab, ner_vocab
 
 
-# =========================================================
-# LOAD SPACY
-# =========================================================
 def load_spacy():
     nlp = spacy.load("en_core_web_sm", disable=["lemmatizer", "textcat"])
     if "parser" not in nlp.pipe_names and "senter" not in nlp.pipe_names:
@@ -79,9 +71,6 @@ def load_spacy():
     return nlp
 
 
-# =========================================================
-# BUILD DATA
-# =========================================================
 def build_df_from_articles(folder):
     rows = []
 
@@ -109,20 +98,15 @@ def build_unlabeled_records(df):
     ]
 
 
-# =========================================================
-# PREDICT
-# =========================================================
 def filter_spans(spans, max_len=200, min_len=2):
     new_spans = []
 
     for s, e in spans:
         length = e - s
 
-        # keep short spans more aggressively
         if length < min_len:
             continue
 
-        # shrink large spans instead of removing
         if length > max_len:
             mid = (s + e) // 2
             new_spans.append((s, mid))
@@ -141,7 +125,6 @@ def split_long_spans(spans, max_len=120):
         if length <= max_len:
             new_spans.append((s, e))
         else:
-            # split into chunks
             cur = s
             while cur < e:
                 new_spans.append((cur, min(cur + max_len, e)))
@@ -188,9 +171,6 @@ def predict_spans(model, loader, device):
     }
 
 
-# =========================================================
-# SAVE PREDICTIONS
-# =========================================================
 def save_predictions(pred_spans, output_file):
     with open(output_file, "w") as f:
         for aid in sorted(pred_spans.keys()):
@@ -199,9 +179,6 @@ def save_predictions(pred_spans, output_file):
                     f.write(f"{aid}\t{s}\t{e}\n")
 
 
-# =========================================================
-# RUN SCORER
-# =========================================================
 import re
 
 def run_official_scorer(script, pred_file, gold_file):
@@ -215,12 +192,10 @@ def run_official_scorer(script, pred_file, gold_file):
 
     print(output)
 
-    # 🔥 EXTRACT METRICS
     precision = recall = f1 = None
 
     for line in output.split("\n"):
         if "Precision=" in line:
-            # example: Precision=298.23/725=0.41 Recall=...
             match = re.search(
                 r'Precision=.*=(\d+\.\d+).*Recall=.*=(\d+\.\d+)',
                 line
@@ -239,9 +214,6 @@ def run_official_scorer(script, pred_file, gold_file):
     }
 
 
-# =========================================================
-# MAIN FUNCTION
-# =========================================================
 def predict_and_score_with_official_scorer(
     checkpoint_path,
     articles_folder,
@@ -291,7 +263,6 @@ def predict_and_score_with_official_scorer(
         pred_file,
         gold_labels_file
     )
-    # 🔥 DEBUG OUTPUT
     span_statistics(pred_spans)
 
     debug_predictions(
@@ -305,7 +276,6 @@ def predict_and_score_with_official_scorer(
 def debug_predictions(pred_spans, gold_file, df, top_k=5):
     print("\n🔍 DEBUGGING MODEL BEHAVIOR\n")
 
-    # Load gold
     gold = defaultdict(list)
     with open(gold_file) as f:
         for line in f:
@@ -321,13 +291,11 @@ def debug_predictions(pred_spans, gold_file, df, top_k=5):
         preds = pred_spans.get(aid, [])
         golds = gold.get(aid, [])
 
-        # False positives
         fp = []
         for p in preds:
             if not any(overlap(p, g) for g in golds):
                 fp.append(p)
 
-        # False negatives
         fn = []
         for g in golds:
             if not any(overlap(g, p) for p in preds):

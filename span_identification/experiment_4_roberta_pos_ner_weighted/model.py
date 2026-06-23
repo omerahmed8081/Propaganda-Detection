@@ -1,3 +1,4 @@
+# Span model with POS/NER features and a class-weighted loss.
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
@@ -16,9 +17,6 @@ from torchcrf import CRF
 import spacy
 from tqdm.auto import tqdm
 import logging
-# =========================================================
-# 1. CONFIG
-# =========================================================
 @dataclass
 class CFG:
     model_name: str = "roberta-large"
@@ -37,16 +35,11 @@ class CFG:
     dropout: float = 0.2
     save_path: str = "best_span_roberta_model.pt"
 
-    # weighted loss settings
-    class_weights: tuple = (1.0, 3.0, 3.0, 3.0, 3.0)   # O, B, I, E, S
-    ce_loss_weight: float = 0.5   # auxiliary weighted CE
-    crf_loss_weight: float = 1.0  # CRF main loss
+    class_weights: tuple = (1.0, 3.0, 3.0, 3.0, 3.0)
+    ce_loss_weight: float = 0.5
+    crf_loss_weight: float = 1.0
 
 
-# =========================================================
-# 2. LABELS
-# BIOES for propaganda span detection
-# =========================================================
 LABEL2ID = {
     "O": 0,
     "B-PROP": 1,
@@ -58,9 +51,6 @@ ID2LABEL = {v: k for k, v in LABEL2ID.items()}
 NUM_LABELS = len(LABEL2ID)
 
 
-# =========================================================
-# 3. REPRODUCIBILITY
-# =========================================================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -68,10 +58,6 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
 
 
-# =========================================================
-# 4. ARTICLE-LEVEL RECORDS
-# Convert row-per-span dataframe into one row per article
-# =========================================================
 def build_article_records(df: pd.DataFrame):
     records = []
 
@@ -105,9 +91,6 @@ def build_article_records(df: pd.DataFrame):
         })
 
     return records
-# =========================================================
-# 5. SPACY-BASED POS / NER VOCAB BUILDING
-# =========================================================
 def build_pos_ner_vocab(article_records, nlp):
     """
     Build vocabularies from training articles only.
@@ -135,10 +118,6 @@ def build_pos_ner_vocab(article_records, nlp):
     return pos_vocab, ner_vocab
 
 
-# =========================================================
-# 6. CHAR-LEVEL AUXILIARY MAPS
-# POS / NER per character position
-# =========================================================
 def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
     """
     Returns two arrays of length len(text):
@@ -150,13 +129,11 @@ def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
 
     doc = nlp(text)
 
-    # POS from tokens
     for tok in doc:
         pos_id = pos_vocab.get(tok.pos_, 0)
         start, end = tok.idx, tok.idx + len(tok.text)
         pos_char_ids[start:end] = pos_id
 
-    # NER from entities
     for ent in doc.ents:
         ner_id = ner_vocab.get(ent.label_, 0)
         start, end = ent.start_char, ent.end_char
@@ -165,10 +142,6 @@ def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
     return pos_char_ids, ner_char_ids
 
 
-# =========================================================
-# 7. GOLD CHAR MASK
-# 1 for propaganda chars, 0 otherwise
-# =========================================================
 def build_gold_char_mask(text_len, spans):
     mask = np.zeros(text_len, dtype=np.int64)
     for s, e in spans:
@@ -179,10 +152,6 @@ def build_gold_char_mask(text_len, spans):
     return mask
 
 
-# =========================================================
-# 8. TOKEN TAGGING FROM CHAR SPANS
-# Convert token offsets -> BIOES labels
-# =========================================================
 def assign_bioes_from_offsets(offsets, gold_char_mask):
     """
     offsets: list of (start, end) for tokens in one window
@@ -198,7 +167,7 @@ def assign_bioes_from_offsets(offsets, gold_char_mask):
     for start, end in offsets:
         if end <= start:
             token_is_prop.append(0)
-            crf_mask.append(0)   # special token / padding
+            crf_mask.append(0)
         else:
             overlap = gold_char_mask[start:end].max() > 0
             token_is_prop.append(1 if overlap else 0)
@@ -217,7 +186,6 @@ def assign_bioes_from_offsets(offsets, gold_char_mask):
         while j + 1 < n and crf_mask[j + 1] == 1 and token_is_prop[j + 1] == 1:
             j += 1
 
-        # span from i..j
         if i == j:
             labels[i] = LABEL2ID["S-PROP"]
         else:
@@ -227,16 +195,12 @@ def assign_bioes_from_offsets(offsets, gold_char_mask):
             labels[j] = LABEL2ID["E-PROP"]
 
         i = j + 1
-    # Ensure first timestep mask is valid for CRF
     if len(crf_mask) > 0:
         crf_mask[0] = 1
     return labels, crf_mask
 
 
-# =========================================================
-# 9. DATASET
-# Sliding windows + POS/NER alignment + BIOES labels
-# =========================================================
+# Dataset: sliding-window tokenisation and BIOES labels
 class PTCSpanDataset(Dataset):
     def __init__(self, article_records, tokenizer, nlp, pos_vocab, ner_vocab,
                  max_length=512, stride=384, is_train=True):
@@ -326,11 +290,7 @@ def collate_fn(batch):
     }
 
 
-# =========================================================
-# 10. MODEL
-# DeBERTa + POS/NER fusion + BiLSTM + CRF
-# Ready for future discourse_feats
-# =========================================================
+# Model
 class DebertaSpanTagger(nn.Module):
     def __init__(
         self,
@@ -437,14 +397,11 @@ class DebertaSpanTagger(nn.Module):
             raise ValueError("Non-finite values detected in emissions")
 
         if labels is not None:
-            # 1) CRF loss
             crf_loss = -self.crf(emissions, labels, mask=crf_mask, reduction="token_mean")
 
             if not torch.isfinite(crf_loss):
                 raise ValueError("Non-finite CRF loss detected")
 
-            # 2) Weighted token-level CE loss
-            # flatten only valid tokens according to crf_mask
             valid_mask = crf_mask.view(-1)
             flat_emissions = emissions.view(-1, emissions.size(-1))[valid_mask]
             flat_labels = labels.view(-1)[valid_mask]
@@ -455,7 +412,6 @@ class DebertaSpanTagger(nn.Module):
             if not torch.isfinite(ce_loss):
                 raise ValueError("Non-finite CE loss detected")
 
-            # 3) Combined loss
             total_loss = self.crf_loss_weight * crf_loss + self.ce_loss_weight * ce_loss
 
             if not torch.isfinite(total_loss):
@@ -466,9 +422,6 @@ class DebertaSpanTagger(nn.Module):
             preds = self.crf.decode(emissions, mask=crf_mask)
             return preds
 
-# =========================================================
-# 11. TRAIN / EVAL UTILITIES
-# =========================================================
 def token_level_f1(gold_list, pred_list):
     """
     Micro-F1 over non-padding real tokens.
@@ -553,36 +506,30 @@ def decode_bioes_token_spans(tag_seq, offsets):
     while i < n:
         tag = tag_seq[i]
 
-        # skip special/pad tokens
         if offsets[i][1] <= offsets[i][0]:
             i += 1
             continue
 
-        # O
         if tag == LABEL2ID["O"]:
             i += 1
             continue
 
-        # S-PROP => single-token span
         if tag == LABEL2ID["S-PROP"]:
             start, end = offsets[i]
             spans.append((start, end))
             i += 1
             continue
 
-        # B-PROP => try to form B ... I* ... E
         if tag == LABEL2ID["B-PROP"]:
             start = offsets[i][0]
             j = i + 1
 
-            # Case 1: immediate B E
             if j < n and offsets[j][1] > offsets[j][0] and tag_seq[j] == LABEL2ID["E-PROP"]:
                 end = offsets[j][1]
                 spans.append((start, end))
                 i = j + 1
                 continue
 
-            # Case 2: B I* E
             while j < n:
                 if offsets[j][1] <= offsets[j][0]:
                     break
@@ -597,18 +544,14 @@ def decode_bioes_token_spans(tag_seq, offsets):
                     i = j + 1
                     break
 
-                # broken chain
                 break
             else:
-                # fell off sequence without E
                 pass
 
             if i < n and tag_seq[i] == LABEL2ID["B-PROP"]:
-                # no valid closing E found, drop broken span
                 i += 1
             continue
 
-        # isolated I or E => ignore conservatively
         if tag in (LABEL2ID["I-PROP"], LABEL2ID["E-PROP"]):
             i += 1
             continue
@@ -629,7 +572,7 @@ def merge_overlapping_spans(spans):
     for s, e in spans[1:]:
         last_s, last_e = merged[-1]
 
-        if s <= last_e:  # overlap or touching
+        if s <= last_e:
             merged[-1] = (last_s, max(last_e, e))
         else:
             merged.append((s, e))
@@ -666,7 +609,6 @@ def predict_spans(model, loader, device):
             gold_seq = labels[i].tolist()
             pred_seq = preds[i]
 
-            # token-level eval on real tokens only
             real_gold = []
             real_pred = []
             for g, p, (s, e) in zip(gold_seq, pred_seq, offsets):
@@ -677,11 +619,9 @@ def predict_spans(model, loader, device):
             all_gold_token.append(real_gold)
             all_pred_token.append(real_pred)
 
-            # Proper BIOES decoding
             window_spans = decode_bioes_token_spans(pred_seq, offsets)
             pred_spans_by_article_raw[article_id].extend(window_spans)
 
-    # Merge overlapping spans from different windows of same article
     pred_spans_by_article = {
         aid: merge_overlapping_spans(spans)
         for aid, spans in pred_spans_by_article_raw.items()
@@ -711,7 +651,6 @@ def train_one_epoch(model, loader, optimizer, scheduler, device):
 
         optimizer.zero_grad(set_to_none=True)
 
-        # input checks
         if not torch.isfinite(input_ids.float()).all():
             raise ValueError(f"Non-finite input_ids at step {step}")
         if not torch.isfinite(attention_mask.float()).all():
@@ -765,24 +704,20 @@ def evaluate(model, loader, article_records, device):
     return metrics, pred_spans_by_article
 
 
+# Training
 def run_training(train_data, val_data, cfg: CFG):
     set_seed(cfg.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # -------- Build article-level records
     train_articles = build_article_records(train_data)
     val_articles = build_article_records(val_data)
 
-    # -------- Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name, use_fast=True)
 
-    # -------- spaCy
     nlp = spacy.load("en_core_web_sm", disable=["lemmatizer", "textcat"])
 
-    # -------- Vocab from train only
     pos_vocab, ner_vocab = build_pos_ner_vocab(train_articles, nlp)
 
-    # -------- Datasets
     train_ds = PTCSpanDataset(
         train_articles, tokenizer, nlp, pos_vocab, ner_vocab,
         max_length=cfg.max_length, stride=cfg.stride, is_train=True
@@ -793,7 +728,6 @@ def run_training(train_data, val_data, cfg: CFG):
     )
 
 
-    # -------- Loaders
     train_loader = DataLoader(
         train_ds, batch_size=cfg.batch_size, shuffle=True,
         num_workers=cfg.num_workers, collate_fn=collate_fn
@@ -840,7 +774,6 @@ def run_training(train_data, val_data, cfg: CFG):
     best_val_f1 = -1
     best_state = None
 
-    # -------- Training loop
     for epoch in range(1, cfg.epochs + 1):
         train_loss = train_one_epoch(model, train_loader, optimizer, scheduler, device)
 
@@ -868,11 +801,9 @@ def run_training(train_data, val_data, cfg: CFG):
     return model, tokenizer, pos_vocab, ner_vocab, train_ds, val_ds
 
 def main():
-    # 1. Setup Logging (Optional but recommended for scripts)
     logging.basicConfig(level=logging.INFO)
     print("🚀 Starting Training Pipeline...")
 
-    # 2. Load Data
     train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
     val_data = pd.read_parquet(config.SPAN_VAL_PARQUET)
     train_data.drop(columns=["span_text"], inplace=True)

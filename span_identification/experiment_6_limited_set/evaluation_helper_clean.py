@@ -1,3 +1,4 @@
+# Run a trained span model on the dev articles and score it with the official scorer.
 import os
 import torch
 import pandas as pd
@@ -9,7 +10,6 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 
-# 🔥 import from your model file
 from model import (
     TransformerSpanTagger,
     PTCSpanDataset,
@@ -20,13 +20,9 @@ from model import (
     NUM_LABELS
 )
 
-# =========================================================
-# LOAD MODEL
-# =========================================================
 def load_model(checkpoint_path, device):
     ckpt = torch.load(checkpoint_path, map_location=device)
 
-    # Fix CFG mismatch
     if isinstance(ckpt["cfg"], dict):
         cfg_dict = ckpt["cfg"]
         valid_keys = CFG.__dataclass_fields__.keys()
@@ -54,7 +50,6 @@ def load_model(checkpoint_path, device):
         crf_loss_weight=cfg.crf_loss_weight
     )
 
-    # allow safe loading
     model.load_state_dict(ckpt["model_state_dict"], strict=False)
 
     model.to(device)
@@ -65,9 +60,6 @@ def load_model(checkpoint_path, device):
     return model, tokenizer, cfg, pos_vocab, ner_vocab
 
 
-# =========================================================
-# LOAD SPACY
-# =========================================================
 def load_spacy():
     nlp = spacy.load("en_core_web_sm", disable=["lemmatizer", "textcat"])
     if "parser" not in nlp.pipe_names and "senter" not in nlp.pipe_names:
@@ -75,9 +67,6 @@ def load_spacy():
     return nlp
 
 
-# =========================================================
-# BUILD DATA
-# =========================================================
 def build_df_from_articles(folder):
     rows = []
 
@@ -105,9 +94,6 @@ def build_unlabeled_records(df):
     ]
 
 
-# =========================================================
-# PREDICT
-# =========================================================
 @torch.no_grad()
 def predict_spans(model, loader, device):
     model.eval()
@@ -145,9 +131,6 @@ def predict_spans(model, loader, device):
     }
 
 
-# =========================================================
-# SAVE PREDICTIONS
-# =========================================================
 def save_predictions(pred_spans, output_file):
     with open(output_file, "w") as f:
         for aid in sorted(pred_spans.keys()):
@@ -156,9 +139,6 @@ def save_predictions(pred_spans, output_file):
                     f.write(f"{aid}\t{s}\t{e}\n")
 
 
-# =========================================================
-# RUN SCORER
-# =========================================================
 def run_official_scorer(script, pred_file, gold_file):
     result = subprocess.run(
         ["python", script, "-s", pred_file, "-r", gold_file],
@@ -171,9 +151,6 @@ def run_official_scorer(script, pred_file, gold_file):
         print("ERROR:", result.stderr)
 
 
-# =========================================================
-# MAIN FUNCTION
-# =========================================================
 def predict_and_score_with_official_scorer(
     checkpoint_path,
     articles_folder,

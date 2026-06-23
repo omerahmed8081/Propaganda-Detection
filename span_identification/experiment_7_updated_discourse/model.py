@@ -1,3 +1,4 @@
+# Final span identification model: RoBERTa-large + POS/NER + discourse features + BiLSTM-CRF.
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
@@ -22,17 +23,13 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 import logging
-# =========================================================
-# 1. CONFIG
-# =========================================================
 @dataclass
 class CFG:
     model_name: str = "roberta-large"
-    run_name: str = "default_run"   # 🔥 ADD THIS
+    run_name: str = "default_run"
     max_length: int = 512
     stride: int = 256
     batch_size: int = 8
-    # lr: float = 2e-5
     weight_decay: float = 0.01
     epochs: int = 5
     warmup_ratio: float = 0.1
@@ -51,23 +48,17 @@ class CFG:
     dropout: float = 0.2
     save_dir: str = "checkpoints_2"
 
-    # use CRF only
     class_weights: tuple = (0.7, 2.0,2.0, 2.0, 2.0)
     ce_loss_weight: float = 0.3
     crf_loss_weight: float = 0.5
 
-    # important: any overlap marks positive
     min_token_overlap_ratio: float = 0.1
 
-    # feature scaling
     pos_scale: float = 0.15
     ner_scale: float = 0.15
     discourse_scale: float = 0.15
 
 
-# =========================================================
-# 2. LABELS
-# =========================================================
 LABEL2ID = {
     "O": 0,
     "B-PROP": 1,
@@ -79,9 +70,6 @@ ID2LABEL = {v: k for k, v in LABEL2ID.items()}
 NUM_LABELS = len(LABEL2ID)
 
 
-# =========================================================
-# 3. REPRODUCIBILITY
-# =========================================================
 def set_seed(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -89,9 +77,6 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
 
 
-# =========================================================
-# 4. ARTICLE RECORDS
-# =========================================================
 def build_article_records(df: pd.DataFrame):
     records = []
 
@@ -127,9 +112,6 @@ def build_article_records(df: pd.DataFrame):
     return records
 
 
-# =========================================================
-# 5. POS / NER VOCAB
-# =========================================================
 def build_pos_ner_vocab(article_records, nlp):
     pos_set = set()
     ner_set = set()
@@ -153,9 +135,6 @@ def build_pos_ner_vocab(article_records, nlp):
     return pos_vocab, ner_vocab
 
 
-# =========================================================
-# 6. CHAR-LEVEL AUXILIARY MAPS
-# =========================================================
 def build_char_feature_maps(text, nlp, pos_vocab, ner_vocab):
     pos_char_ids = np.zeros(len(text), dtype=np.int64)
     ner_char_ids = np.zeros(len(text), dtype=np.int64)
@@ -273,9 +252,6 @@ def build_char_discourse_feature_map(text, nlp):
     return feats
 
 
-# =========================================================
-# 7. GOLD CHAR MASK
-# =========================================================
 def build_gold_char_mask(text_len, spans):
     mask = np.zeros(text_len, dtype=np.int64)
     for s, e in spans:
@@ -286,10 +262,6 @@ def build_gold_char_mask(text_len, spans):
     return mask
 
 
-# =========================================================
-# 8. TOKEN TAGGING FROM CHAR SPANS
-# any overlap => positive
-# =========================================================
 def assign_bioes_from_offsets(offsets, gold_char_mask, min_overlap_ratio=0.0):
     token_is_prop = []
     crf_mask = []
@@ -339,9 +311,7 @@ def assign_bioes_from_offsets(offsets, gold_char_mask, min_overlap_ratio=0.0):
     return labels, crf_mask
 
 
-# =========================================================
-# 9. DATASET
-# =========================================================
+# Dataset: sliding-window tokenisation and BIOES labels
 class PTCSpanDataset(Dataset):
     def __init__(
         self,
@@ -450,10 +420,7 @@ def collate_fn(batch):
     }
 
 
-# =========================================================
-# 10. MODEL
-# kept features, but safer integration
-# =========================================================
+# Model
 class TransformerSpanTagger(nn.Module):
     def __init__(
         self,
@@ -581,9 +548,6 @@ class TransformerSpanTagger(nn.Module):
         return self.crf.decode(emissions, mask=crf_mask)
 
 
-# =========================================================
-# 11. METRICS / SPAN HELPERS
-# =========================================================
 def token_level_f1(gold_list, pred_list):
     tp = fp = fn = 0
 
@@ -765,10 +729,6 @@ def merge_overlapping_spans(spans, max_gap=5):
             merged.append((s, e))
 
     return merged
-# =========================================================
-# 12. PREDICTION
-# direct decode + merge only
-# =========================================================
 @torch.no_grad()
 def predict_spans(model, loader, device):
     model.eval()
@@ -884,9 +844,7 @@ def evaluate(model, loader, article_records, device):
     return metrics, pred_spans_by_article
 
 
-# =========================================================
-# 13. TRAINING
-# =========================================================
+# Training
 def run_training(train_data, val_data,  cfg: CFG):
     set_seed(cfg.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -959,7 +917,6 @@ def run_training(train_data, val_data,  cfg: CFG):
     ).to(device)
 
 
-    # 🔥 HITACHI STYLE PARAM GROUPING
     plm_params = []
     head_params = []
 
@@ -970,17 +927,16 @@ def run_training(train_data, val_data,  cfg: CFG):
             head_params.append(param)
 
 
-    # 🔥 NEW OPTIMIZER
     optimizer = torch.optim.AdamW(
         [
             {
                 "params": plm_params,
-                "lr": cfg.plm_lr,   # small LR for PLM
+                "lr": cfg.plm_lr,
                 "weight_decay": cfg.weight_decay,
             },
             {
                 "params": head_params,
-                "lr": cfg.head_lr,  # larger LR for head
+                "lr": cfg.head_lr,
                 "weight_decay": cfg.weight_decay,
             },
         ]
@@ -1043,19 +999,15 @@ def run_training(train_data, val_data,  cfg: CFG):
     return model, tokenizer, pos_vocab, ner_vocab, train_ds, val_ds
 
 def main():
-    # os.makedirs("checkpoints", exist_ok=True)
-    # 1. Setup Logging (Optional but recommended for scripts)
     logging.basicConfig(level=logging.INFO)
     print("🚀 Starting Training Pipeline...")
 
 
-    # 2. Load Data
     train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
     val_data = pd.read_parquet(config.SPAN_VAL_PARQUET)
     train_data.drop(columns=["span_text"], inplace=True)
     val_data.drop(columns=["span_text"], inplace=True)
     EXPERIMENTS = [
-        # 🔥 4. LOW CONTEXT (reduces long noisy spans → precision ↑)
         {
             "run_name": "limited_data_model",
             "stride": 128,
@@ -1069,7 +1021,6 @@ def main():
     
     results = []
 
-    # 1️⃣ Manual experiments
     for exp in EXPERIMENTS:
         print(f"\n🔥 Running experiment: {exp['run_name']}")
 
