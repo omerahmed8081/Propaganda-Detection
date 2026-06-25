@@ -274,7 +274,7 @@ def predict_and_score_with_official_scorer(
     return scores
 
 def debug_predictions(pred_spans, gold_file, df, top_k=5):
-    print("\n🔍 DEBUGGING MODEL BEHAVIOR\n")
+    print("\nDEBUGGING MODEL BEHAVIOR\n")
 
     gold = defaultdict(list)
     with open(gold_file) as f:
@@ -301,17 +301,17 @@ def debug_predictions(pred_spans, gold_file, df, top_k=5):
             if not any(overlap(g, p) for p in preds):
                 fn.append(g)
 
-        print(f"\n📄 ARTICLE {aid}")
+        print(f"\nARTICLE {aid}")
         print(f"Pred spans: {len(preds)}, Gold spans: {len(golds)}")
         print(f"FP: {len(fp)}, FN: {len(fn)}")
 
-        print("\n❌ FALSE POSITIVES:")
+        print("\nFALSE POSITIVES:")
         for s, e in fp[:5]:
-            print(f"[{s},{e}] → {text[s:e]}")
+            print(f"[{s},{e}] {text[s:e]}")
 
-        print("\n⚠️ MISSED (FALSE NEGATIVES):")
+        print("\nMISSED (FALSE NEGATIVES):")
         for s, e in fn[:5]:
-            print(f"[{s},{e}] → {text[s:e]}")
+            print(f"[{s},{e}] {text[s:e]}")
 
 
 def span_statistics(pred_spans):
@@ -325,7 +325,7 @@ def span_statistics(pred_spans):
         print("No spans predicted")
         return
 
-    print("\n📊 SPAN STATS")
+    print("\nSPAN STATS")
     print(f"Total spans: {len(lengths)}")
     print(f"Avg length: {sum(lengths)/len(lengths):.2f}")
     print(f"Min length: {min(lengths)}")

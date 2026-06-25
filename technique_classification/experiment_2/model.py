@@ -298,7 +298,7 @@ def run_training(train_df, val_df):
                 "id2label": id2label
             }, "best_technique_model.pt")
 
-            print("✅ Model saved!")
+            print("Model saved!")
 
     return model, tokenizer, label2id, id2label
 

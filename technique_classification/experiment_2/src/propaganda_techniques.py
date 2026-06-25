@@ -2,7 +2,7 @@
 class Propaganda_Techniques():
 
 
-    TECHNIQUE_NAMES_FILE="/home/omer_ahmed/Experiments/Technique_classification/Experiment_1_discourse_model/propaganda-techniques-names.txt"
+    TECHNIQUE_NAMES_FILE="propaganda-techniques-names-semeval2020task11.txt"
 
     def __init__(self, filename=TECHNIQUE_NAMES_FILE):
 

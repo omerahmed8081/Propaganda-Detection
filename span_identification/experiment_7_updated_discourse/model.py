@@ -954,12 +954,12 @@ def run_training(train_data, val_data,  cfg: CFG):
 
     for epoch in range(1, cfg.epochs + 1):
         if epoch == 1:
-            print("🔒 Freezing encoder")
+            print("Freezing encoder")
             for param in model.encoder.parameters():
                 param.requires_grad = False
 
         elif epoch == 2:
-            print("🔓 Unfreezing encoder")
+            print("Unfreezing encoder")
             for param in model.encoder.parameters():
                 param.requires_grad = True
         train_loss = train_one_epoch(model, train_loader, optimizer, scheduler, device)
@@ -1000,7 +1000,7 @@ def run_training(train_data, val_data,  cfg: CFG):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    print("🚀 Starting Training Pipeline...")
+    print("Starting Training Pipeline...")
 
 
     train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
@@ -1022,7 +1022,7 @@ def main():
     results = []
 
     for exp in EXPERIMENTS:
-        print(f"\n🔥 Running experiment: {exp['run_name']}")
+        print(f"\nRunning experiment: {exp['run_name']}")
 
         cfg = CFG(
             model_name="roberta-large",
@@ -1061,13 +1061,13 @@ def main():
             "class_weights": cfg.class_weights,
         })
 
-    print("✅ All experiments finished. Check 'checkpoints/' folder.")
+    print("All experiments finished. Check 'checkpoints/' folder.")
     df = pd.DataFrame(results)
     df.sort_values("val_f1", ascending=False, inplace=True)
 
     df.to_csv("checkpoints_2/experiment_results.csv", index=False)
 
-    print("\n🏆 BEST CONFIG:")
+    print("\nBEST CONFIG:")
     print(df.head(3))
 
 if __name__ == "__main__":

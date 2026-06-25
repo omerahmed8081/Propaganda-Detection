@@ -27,7 +27,7 @@ def create_gold_file(df, output_path):
     with open(output_path, "w") as f:
         f.write("\n".join(lines))
 
-    print(f"✅ Gold file saved to: {output_path}")
+    print(f"Gold file saved to: {output_path}")
 
 
 @torch.no_grad()
@@ -80,7 +80,7 @@ def save_submission(pred_lines, output_path):
     with open(output_path, "w") as f:
         f.write("\n".join(pred_lines))
 
-    print(f"✅ Submission file saved to: {output_path}")
+    print(f"Submission file saved to: {output_path}")
 
 
 def run_scorer(
@@ -101,14 +101,14 @@ def run_scorer(
         "-p", techniques_list_path
     ]
 
-    print("\n🚀 Running SemEval scorer...\n")
+    print("\nRunning SemEval scorer...\n")
 
     result = subprocess.run(command, capture_output=True, text=True)
 
     print(result.stdout)
 
     if result.stderr:
-        print("⚠️ STDERR:\n", result.stderr)
+        print("STDERR:\n", result.stderr)
 
 
 def evaluate_full_pipeline(

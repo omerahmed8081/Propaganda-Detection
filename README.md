@@ -117,8 +117,8 @@ the top of each `model.py`.
 
 ## 3. Evaluate
 
-Open the experiment's `Evaluation.ipynb`. It loads a trained `.pt`, predicts on
-the PTC **dev** articles. Point the checkpoint path at the matching file in `trained_models_archive/` (see below).
+Open the experiment's `Evaluation.ipynb`. It loads a trained `.pt` and predicts
+on the PTC **dev** articles. Set the checkpoint path to your trained model file.
 
 ## LLM baselines
 

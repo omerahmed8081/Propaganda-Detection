@@ -957,7 +957,7 @@ def run_training(train_data, val_data, test_data, cfg: CFG):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    print("🚀 Starting Training Pipeline...")
+    print("Starting Training Pipeline...")
 
     train_data = pd.read_parquet(config.SPAN_TRAIN_PARQUET)
     val_data = pd.read_parquet(config.SPAN_VAL_PARQUET)
@@ -986,7 +986,7 @@ def main():
         cfg=cfg
     )
 
-    print(f"✅ Training complete. Model saved to {cfg.save_path}")
+    print(f"Training complete. Model saved to {cfg.save_path}")
 
 if __name__ == "__main__":
     main()

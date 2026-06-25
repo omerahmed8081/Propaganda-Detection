@@ -66,7 +66,7 @@ def main(args):
     recall = tp / (tp + fn + 1e-6)
     f1 = 2 * precision * recall / (precision + recall + 1e-6)
 
-    print("\n🚀 RELAXED SCORING RESULTS")
+    print("\nRELAXED SCORING RESULTS")
     print(f"Precision={precision:.6f}")
     print(f"Recall={recall:.6f}")
     print(f"F1={f1:.6f}")
@@ -74,7 +74,7 @@ def main(args):
     # --------------------------------------------------
     # PER-CLASS METRICS
     # --------------------------------------------------
-    print("\n📊 Per-class F1:")
+    print("\nPer-class F1:")
 
     for label in all_labels:
         tp = fp = fn = 0
