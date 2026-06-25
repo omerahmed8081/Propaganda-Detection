@@ -1,8 +1,7 @@
 # Fine-Grained Propaganda Detection in News Articles
 
 Code for a master's thesis on fine-grained propaganda detection, following the
-**SemEval-2020 Task 11** formulation and additionally evaluating on the custom
-**ProText** dataset. The work covers two independent sub-tasks:
+**SemEval-2020 Task 11** formulation. The work covers two independent sub-tasks:
 
 | Task | Name | Goal | Models |
 |------|------|------|--------|
@@ -12,9 +11,7 @@ Code for a master's thesis on fine-grained propaganda detection, following the
 The two tasks are **independent**: the technique classifier is trained and
 evaluated on *gold* spans, not on spans predicted by the SI model.
 
-> **Trained model weights are not in this repository** (each is ~1.4 GB). They
-> are archived separately — see [Trained models](#trained-models).
-
+> **Trained model weights are not in this repository** 
 ---
 
 ## Repository structure
@@ -30,7 +27,6 @@ propaganda-detection/
 │   └── build_technique_dataset.ipynb   ← PTC + ProText → TC parquets (keeps techniques)
 │
 ├── span_identification/           ← Task 1 (SI)
-│   ├── README.md
 │   ├── experiment_1_roberta/                   RoBERTa-large + BiLSTM + CRF (baseline)
 │   ├── experiment_2_roberta_pos_ner/           + POS & NER embeddings
 │   ├── experiment_3_roberta_pos_ner_discourse/ + 11-dim discourse features
@@ -42,16 +38,11 @@ propaganda-detection/
 │   └── task-SI_scorer.py                         SI scorer
 │
 └── technique_classification/      ← Task 2 (TC)
-    ├── README.md
     ├── experiment_1/              RoBERTa-large + span pooling + BCE
     ├── experiment_2/             FINAL TC model (best) — CLS + span-mean + span-max pooling
     ├── experiment_3_llm/         GPT 5.4 few-shot baseline
     └── (each supervised experiment ships the task-TC_scorer.py + src/)
 ```
-
-Each supervised experiment folder contains:
-- `model.py` — model definition **and** the training entry point (`python model.py`)
-- `Evaluation.ipynb` + `evaluation_helper*.py`
 
 ---
 
@@ -78,12 +69,12 @@ All data paths live in one place — [`config.py`](config.py) at the repo root.
 Set them once and both the dataset builders and the model training scripts pick
 them up:
 
-| Setting | Used by | Meaning |
-|---------|---------|---------|
-| `PTC_ARTICLES_FOLDER`, `PTC_LABEL_FILE`, `PROTEXT_XLSX` | builders | raw PTC + ProText inputs |
-| `SPAN_DATA_DIR` | span builder → span `model.py` | processed SI parquets |
-| `TECHNIQUE_DATA_DIR` | technique builder → technique `model.py` | processed TC parquets |
-| `DEV_ARTICLES_FOLDER`, `DEV_SI_GOLD_FILE` | span `Evaluation.ipynb` | PTC dev articles + SI gold for scoring |
+| Setting | Used by |
+|---------|---------|
+| `PTC_ARTICLES_FOLDER`, `PTC_LABEL_FILE`, `PROTEXT_XLSX` | builders |
+| `SPAN_DATA_DIR` | span builder → span `model.py` |
+| `TECHNIQUE_DATA_DIR` | technique builder → technique `model.py` |
+| `DEV_ARTICLES_FOLDER`, `DEV_SI_GOLD_FILE` | span `Evaluation.ipynb` |
 
 `SPAN_TRAIN_PARQUET`, `TECHNIQUE_TRAIN_PARQUET`, `SI_SCORER`, etc. are derived
 automatically (the technique notebooks evaluate on `TECHNIQUE_TEST_PARQUET`).
@@ -99,17 +90,11 @@ the custom **ProText** dataset. There is one builder per task (see
 [`data_preparation/README.md`](data_preparation/README.md)):
 
 - [`build_span_dataset.ipynb`](data_preparation/build_span_dataset.ipynb) — for
-  Span Identification (drops the `techniques` column).
+  Span Identification.
 - [`build_technique_dataset.ipynb`](data_preparation/build_technique_dataset.ipynb)
-  — for Technique Classification (keeps `techniques`).
+  — for Technique Classification.
 
-Each writes `train.parquet` and `val.parquet` into the output directory you set.
-
-> **Paths:** set all data paths once in [`config.py`](config.py) (raw PTC /
-> ProText inputs and the two processed-data output dirs). The builder notebooks
-> and the model training scripts both import from it, so there's nothing else to
-> edit. The `Evaluation.ipynb` notebooks still carry their own checkpoint/data
-> path constants — set those when you evaluate.
+> **Paths:** set all data paths once in [`config.py`](config.py).
 
 ---
 
@@ -118,13 +103,13 @@ Each writes `train.parquet` and `val.parquet` into the output directory you set.
 Every supervised experiment trains the same way — run its `model.py`:
 
 ```bash
-# Span identification, e.g. the final model
-cd span_identification/experiment_7_updated_discourse
-python model.py            # reads train/val parquet, saves best_*.pt by val F1
 
-# Technique classification, e.g. the final model
+cd span_identification/experiment_7_updated_discourse
+python model.py            
+
+
 cd technique_classification/experiment_2
-python model.py            # saves best_technique_model.pt
+python model.py     
 ```
 
 Hyper-parameters live in the `CFG` dataclass (SI) or the config block (TC) at
@@ -133,9 +118,7 @@ the top of each `model.py`.
 ## 3. Evaluate
 
 Open the experiment's `Evaluation.ipynb`. It loads a trained `.pt`, predicts on
-the PTC **dev** articles, and scores with the official SemEval scorer
-(`task-SI_scorer.py` for SI, `task-TC_scorer.py` for TC). Point the checkpoint
-path at the matching file in `trained_models_archive/` (see below).
+the PTC **dev** articles. Point the checkpoint path at the matching file in `trained_models_archive/` (see below).
 
 ## LLM baselines
 
@@ -143,28 +126,13 @@ Each LLM folder has a **run** script and an **evaluation** notebook:
 
 - **SI — Experiment 8** (`span_identification/experiment_8_llm/`): `llm_span.py`
   (few-shot prompting → predicted span strings) + `Evaluation.ipynb` (offsets →
-  official SI scorer).
+  scorer).
 - **TC — Experiment 3** (`technique_classification/experiment_3_llm/`):
   `llm_technique.py` (14-shot prompting → predicted labels) + `Evaluation.ipynb`
   (span-level micro-F1).
 
-The run scripts read the API key from an environment variable — **no keys are
-committed**:
+The run scripts requries the API key to be changed (OPENAI_API_KEY) 
 
-```bash
-export OPENAI_API_KEY=...        # llm_span.py, llm_technique.py (GPT)
-```
-
----
-
-## Trained models
-
-The 10 trained checkpoints (~14 GB total) are stored **outside this repo** in
-`trained_models_archive/`, renamed per experiment. See
-`trained_models_archive/MODELS_INDEX.md` for the mapping from each file to its
-experiment, encoder, and validation score. They are excluded from git via
-`.gitignore`; to publish them, use Git LFS or an external store (e.g. Zenodo,
-university storage).
 
 ---
 
@@ -174,3 +142,9 @@ university storage).
   Propaganda Techniques in News Articles.*
 - **ProText** — the custom dataset accompanying this thesis
   (https://github.com/Ahmadpir/ProText).
+
+---
+
+## Thesis
+
+Published master's thesis: https://urn.fi/URN:NBN:fi-fe2026061268858
